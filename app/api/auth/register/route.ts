@@ -4,6 +4,18 @@ import bcrypt from 'bcrypt';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 
+// Handle CORS preflight requests
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Check if MongoDB URI is configured
@@ -11,7 +23,14 @@ export async function POST(req: NextRequest) {
       console.error('MongoDB URI not configured properly:', MONGODB_URI);
       return NextResponse.json(
         { message: "Database configuration error. Please contact administrator." },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
       );
     }
 
@@ -21,7 +40,14 @@ export async function POST(req: NextRequest) {
     if (!username || !name || !email || !password) {
       return NextResponse.json(
         { message: "All fields are required" },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
       );
     }
     
@@ -43,7 +69,14 @@ export async function POST(req: NextRequest) {
       await client.close();
       return NextResponse.json(
         { message: existingUser.email === email ? "Email already in use" : "Username already taken" },
-        { status: 409 }
+        { 
+          status: 409,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
       );
     }
 
@@ -77,12 +110,25 @@ export async function POST(req: NextRequest) {
         ...userData,
         id: result.insertedId.toString()
       }
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
     });
   } catch (error: any) {
     console.error("Registration error:", error);
     return NextResponse.json(
       { message: error.message || "Registration failed" },
-      { status: error.status || 500 }
+      { 
+        status: error.status || 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+      }
     );
   }
 }

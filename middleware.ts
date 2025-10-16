@@ -32,6 +32,20 @@ const publicPaths = ['/api', '/_next', '/static', '/images', '/favicon.ico']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  
+  // Handle OPTIONS requests for CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400',
+      },
+    })
+  }
+  
   // Accept either cookie name and Authorization header
   const headerAuth = request.headers.get('authorization') || ''
   const bearer = headerAuth.toLowerCase().startsWith('bearer ') ? headerAuth.split(' ')[1] : null
