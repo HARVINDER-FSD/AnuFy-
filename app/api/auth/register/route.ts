@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from 'mongodb';
 import bcrypt from 'bcrypt';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 // Handle CORS preflight requests
 export async function OPTIONS(req: NextRequest) {
@@ -17,10 +17,12 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  let client: MongoClient | null = null;
+  
   try {
     // Check if MongoDB URI is configured
-    if (!MONGODB_URI || MONGODB_URI.includes('127.0.0.1')) {
-      console.error('MongoDB URI not configured properly:', MONGODB_URI);
+    if (!MONGODB_URI) {
+      console.error('MongoDB URI not configured');
       return NextResponse.json(
         { message: "Database configuration error. Please contact administrator." },
         { 
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
     
     // Connect to MongoDB with timeout
     console.log('Attempting to connect to MongoDB...');
-    const client = await MongoClient.connect(MONGODB_URI, {
+    client = await MongoClient.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     });
     console.log('MongoDB connected successfully');
@@ -66,7 +68,6 @@ export async function POST(req: NextRequest) {
     });
     
     if (existingUser) {
-      await client.close();
       return NextResponse.json(
         { message: existingUser.email === email ? "Email already in use" : "Username already taken" },
         { 
@@ -99,7 +100,6 @@ export async function POST(req: NextRequest) {
     };
     
     const result = await usersCollection.insertOne(newUser);
-    await client.close();
     
     // Return success response (excluding password)
     const { password: _, ...userData } = newUser;
@@ -130,5 +130,11 @@ export async function POST(req: NextRequest) {
         }
       }
     );
+  } finally {
+    // Always close MongoDB connection
+    if (client) {
+      await client.close();
+      console.log('MongoDB connection closed');
+    }
   }
 }

@@ -4,8 +4,8 @@ import { MongoClient, ObjectId } from 'mongodb';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
-const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
+const MONGODB_URI = process.env.MONGODB_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Handle CORS preflight requests
 export async function OPTIONS(req: NextRequest) {
@@ -20,12 +20,30 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  let client: MongoClient | null = null;
+  
   try {
     // Check if MongoDB URI is configured
-    if (!MONGODB_URI || MONGODB_URI.includes('127.0.0.1')) {
-      console.error('MongoDB URI not configured properly:', MONGODB_URI);
+    if (!MONGODB_URI) {
+      console.error('MongoDB URI not configured');
       return NextResponse.json(
         { message: "Database configuration error. Please contact administrator." },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
+      );
+    }
+
+    // Check if JWT_SECRET is configured
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET not configured');
+      return NextResponse.json(
+        { message: "Server configuration error. Please contact administrator." },
         { 
           status: 500,
           headers: {
@@ -56,7 +74,7 @@ export async function POST(req: NextRequest) {
     
     // Connect to MongoDB with timeout
     console.log('Attempting to connect to MongoDB...');
-    const client = await MongoClient.connect(MONGODB_URI, {
+    client = await MongoClient.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     });
     console.log('MongoDB connected successfully');
@@ -67,7 +85,6 @@ export async function POST(req: NextRequest) {
     const user = await usersCollection.findOne({ email });
     
     if (!user) {
-      await client.close();
       return NextResponse.json(
         { message: "Invalid email or password" },
         { 
@@ -85,7 +102,6 @@ export async function POST(req: NextRequest) {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     
     if (!isPasswordValid) {
-      await client.close();
       return NextResponse.json(
         { message: "Invalid email or password" },
         { 
@@ -112,26 +128,27 @@ export async function POST(req: NextRequest) {
     );
 
     // Set httpOnly cookie for server-side access
-    cookies().set({
+    const cookieStore = await cookies();
+    cookieStore.set({
       name: 'token',
       value: token,
       httpOnly: true,
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
     });
     
     // Also set a non-httpOnly cookie for client-side access
-    cookies().set({
+    cookieStore.set({
       name: 'client-token',
       value: token,
       httpOnly: false,
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
     });
-
-    await client.close();
     
     // Return user data and token with the correct structure expected by the frontend
     return NextResponse.json({
@@ -167,5 +184,11 @@ export async function POST(req: NextRequest) {
         }
       }
     );
+  } finally {
+    // Always close MongoDB connection
+    if (client) {
+      await client.close();
+      console.log('MongoDB connection closed');
+    }
   }
 }
