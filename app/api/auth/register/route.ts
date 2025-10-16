@@ -6,6 +6,15 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/social
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if MongoDB URI is configured
+    if (!MONGODB_URI || MONGODB_URI.includes('127.0.0.1')) {
+      console.error('MongoDB URI not configured properly:', MONGODB_URI);
+      return NextResponse.json(
+        { message: "Database configuration error. Please contact administrator." },
+        { status: 500 }
+      );
+    }
+
     const { username, name, email, password } = await req.json();
     
     // Validate required fields
@@ -16,8 +25,12 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Connect to MongoDB
-    const client = await MongoClient.connect(MONGODB_URI);
+    // Connect to MongoDB with timeout
+    console.log('Attempting to connect to MongoDB...');
+    const client = await MongoClient.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    console.log('MongoDB connected successfully');
     const db = client.db();
     const usersCollection = db.collection('users');
 
