@@ -41,7 +41,10 @@ const nextConfig = {
             vendor: {
               test: /[\\/]node_modules[\\/]/,
               name(module) {
-                const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
+                if (!module.context) return 'npm.vendor';
+                const match = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/);
+                if (!match) return 'npm.vendor';
+                const packageName = match[1];
                 return `npm.${packageName.replace('@', '')}`;
               },
               chunks: 'all',
