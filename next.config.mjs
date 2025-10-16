@@ -27,29 +27,24 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200], // Optimize device sizes
     imageSizes: [16, 32, 48, 64, 96, 128, 256], // Optimize image sizes
   },
-  // Enable CSS processing with optimization
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.css$/,
-      use: ['style-loader', 'css-loader', 'postcss-loader'],
-    });
-    
+  // Webpack configuration
+  webpack: (config, { isServer }) => {
     // Add optimization for production builds
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && !isServer) {
       config.optimization = {
         ...config.optimization,
-        runtimeChunk: 'single',
         splitChunks: {
           chunks: 'all',
-          maxInitialRequests: Infinity,
-          minSize: 0,
           cacheGroups: {
+            default: false,
+            vendors: false,
             vendor: {
               test: /[\\/]node_modules[\\/]/,
               name(module) {
                 const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
                 return `npm.${packageName.replace('@', '')}`;
               },
+              chunks: 'all',
             },
           },
         },
