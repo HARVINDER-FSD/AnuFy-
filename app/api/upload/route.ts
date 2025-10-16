@@ -4,15 +4,6 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
 
-// Configure route to handle large files
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
-};
-
 // For App Router (Next.js 13+)
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds timeout
