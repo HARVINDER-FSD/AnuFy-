@@ -55,8 +55,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '50mb',
     },
-    // Enable optimizations
-    optimizeCss: true,
     scrollRestoration: true,
   },
   // Prevent client-side packages from being bundled in server components
