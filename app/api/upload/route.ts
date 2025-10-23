@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Get token from Authorization header or cookies
     const authHeader = request.headers.get('Authorization');
     let token = null;
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
     } else {
@@ -36,14 +36,14 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     if (!token) {
       return NextResponse.json(
         { message: 'You must be logged in to upload media' },
         { status: 401 }
       );
     }
-    
+
     // Verify token
     let decoded: any;
     try {
@@ -55,24 +55,24 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     if (!decoded || !decoded.userId) {
       return NextResponse.json(
         { message: 'Invalid authentication token' },
         { status: 401 }
       );
     }
-    
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    
+
     if (!file) {
       return NextResponse.json(
         { message: 'No file provided' },
         { status: 400 }
       );
     }
-    
+
     // Check file size (max 50MB for videos, 10MB for images)
     const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
@@ -81,24 +81,24 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Determine if it's a video or image
     const isVideo = file.type.startsWith('video/');
     const publicId = `${decoded.userId}_${Date.now()}`;
-    
+
     // Convert file to base64 for Cloudinary upload
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64 = buffer.toString('base64');
     const dataURI = `data:${file.type};base64,${base64}`;
-    
+
     // Upload to Cloudinary using data URI
     const uploadResult = await cloudinary.uploader.upload(dataURI, {
       folder: isVideo ? 'social-media/videos' : 'social-media/images',
       public_id: publicId,
       resource_type: 'auto',
     });
-    
+
     return NextResponse.json({
       success: true,
       url: uploadResult.secure_url,
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       format: uploadResult.format,
       size: uploadResult.bytes,
     });
-    
+
   } catch (error: any) {
     console.error('Upload error:', error);
     return NextResponse.json(

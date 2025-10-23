@@ -27,39 +27,31 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200], // Optimize device sizes
     imageSizes: [16, 32, 48, 64, 96, 128, 256], // Optimize image sizes
   },
-  // Enable CSS processing with optimization
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.css$/,
-      use: ['style-loader', 'css-loader', 'postcss-loader'],
-    });
-    
-    // Add optimization for production builds
-    if (process.env.NODE_ENV === 'production') {
-      config.optimization = {
-        ...config.optimization,
-        runtimeChunk: 'single',
-        splitChunks: {
-          chunks: 'all',
-          maxInitialRequests: Infinity,
-          minSize: 0,
-          cacheGroups: {
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name(module) {
-                const packageName = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/)[1];
-                return `npm.${packageName.replace('@', '')}`;
-              },
-            },
-          },
-        },
+  // Webpack configuration
+  webpack: (config, { isServer }) => {
+    // Fix for packages that use browser globals in server environment
+    if (isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
       };
+    }
+    
+    // Prevent client-side packages from being bundled on server
+    config.externals = config.externals || [];
+    if (isServer) {
+      config.externals.push({
+        'lottie-react': 'lottie-react',
+        'socket.io-client': 'socket.io-client',
+      });
     }
     
     return config;
   },
   experimental: {
-    serverComponentsExternalPackages: ['mongodb'],
+    serverComponentsExternalPackages: ['mongodb', 'mongoose', 'bcryptjs', 'jsonwebtoken'],
     serverActions: {
       bodySizeLimit: '50mb',
     },
@@ -67,6 +59,8 @@ const nextConfig = {
     optimizeCss: true,
     scrollRestoration: true,
   },
+  // Prevent client-side packages from being bundled in server components
+  transpilePackages: ['lottie-react'],
   async headers() {
     return [
       {
