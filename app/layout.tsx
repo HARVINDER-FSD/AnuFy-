@@ -42,25 +42,26 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
       </head>
       <body className="antialiased" style={{ fontFamily: 'Inter, sans-serif' }}>
-        <SplashScreen />
-        <ThemeProvider storageKey="anufy-theme">
-          <AuthProvider>
-            <Suspense fallback={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-pulse text-center">
-                  <div className="h-8 w-32 bg-gray-300 dark:bg-gray-700 rounded mb-4 mx-auto"></div>
-                  <div className="h-4 w-48 bg-gray-200 dark:bg-gray-800 rounded mx-auto"></div>
+        <SplashScreen>
+          <ThemeProvider storageKey="anufy-theme">
+            <AuthProvider>
+              <Suspense fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                  <div className="animate-pulse text-center">
+                    <div className="h-8 w-32 bg-gray-300 dark:bg-gray-700 rounded mb-4 mx-auto"></div>
+                    <div className="h-4 w-48 bg-gray-200 dark:bg-gray-800 rounded mx-auto"></div>
+                  </div>
                 </div>
-              </div>
-            }>
-              <AppLayout>
-                <div className="min-h-screen bg-background grid-pattern">{children}</div>
-              </AppLayout>
-              <Toaster />
-            </Suspense>
-          </AuthProvider>
-        </ThemeProvider>
-        <Analytics />
+              }>
+                <AppLayout>
+                  <div className="min-h-screen bg-background grid-pattern">{children}</div>
+                </AppLayout>
+                <Toaster />
+              </Suspense>
+            </AuthProvider>
+          </ThemeProvider>
+          <Analytics />
+        </SplashScreen>
       </body>
     </html>
   )
