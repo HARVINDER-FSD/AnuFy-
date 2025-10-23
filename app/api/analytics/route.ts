@@ -4,6 +4,9 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+
 // Get analytics data
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    
+
     if (!decoded || !decoded.userId) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }

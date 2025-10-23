@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      sameSite: 'strict',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
     });
     
     // Also set a non-httpOnly cookie for client-side access
@@ -75,7 +76,8 @@ export async function POST(req: NextRequest) {
       httpOnly: false,
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      sameSite: 'strict',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
     });
 
     await client.close();
