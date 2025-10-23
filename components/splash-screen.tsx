@@ -4,42 +4,25 @@ import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 
 export function SplashScreen({ children }: { children: React.ReactNode }) {
-  const [showSplash, setShowSplash] = useState(false)
-  const [splashComplete, setSplashComplete] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  // Start with checking if splash was already shown
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !sessionStorage.getItem('splashShown')
+    }
+    return true // Show splash by default on server
+  })
 
   useEffect(() => {
-    setMounted(true)
-    
-    // Check if splash screen has been shown in this session
-    const hasShownSplash = sessionStorage.getItem('splashShown')
-    
-    if (hasShownSplash) {
-      // If already shown, skip splash immediately
-      setSplashComplete(true)
-    } else {
-      // Show splash screen
-      setShowSplash(true)
-      
-      // Hide splash screen after 2 seconds
+    if (showSplash) {
+      // Hide splash after 2.5 seconds
       const timer = setTimeout(() => {
         setShowSplash(false)
         sessionStorage.setItem('splashShown', 'true')
-        
-        // Mark as complete after fade out animation
-        setTimeout(() => {
-          setSplashComplete(true)
-        }, 500)
-      }, 2000)
+      }, 2500)
 
       return () => clearTimeout(timer)
     }
-  }, [])
-
-  // Don't render anything until mounted (prevents hydration mismatch)
-  if (!mounted) {
-    return null
-  }
+  }, [showSplash])
 
   return (
     <>
@@ -55,7 +38,6 @@ export function SplashScreen({ children }: { children: React.ReactNode }) {
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.2, opacity: 0 }}
               transition={{ 
                 duration: 0.6,
                 ease: "easeOut"
@@ -122,16 +104,14 @@ export function SplashScreen({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
       
-      {/* Only render children after splash is complete */}
-      {splashComplete && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          {children}
-        </motion.div>
-      )}
+      {/* Always render children, splash will overlay when needed */}
+      <motion.div
+        initial={{ opacity: showSplash ? 0 : 1 }}
+        animate={{ opacity: showSplash ? 0 : 1 }}
+        transition={{ duration: 0.3, delay: showSplash ? 0 : 0.5 }}
+      >
+        {children}
+      </motion.div>
     </>
   )
 }
