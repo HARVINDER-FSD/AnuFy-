@@ -5,23 +5,32 @@ import { motion, AnimatePresence } from "framer-motion"
 
 export function SplashScreen() {
   const [isVisible, setIsVisible] = useState(false)
+  const [shouldRender, setShouldRender] = useState(false)
 
   useEffect(() => {
     // Check if splash screen has been shown in this session
     const hasShownSplash = sessionStorage.getItem('splashShown')
     
     if (!hasShownSplash) {
+      setShouldRender(true)
       setIsVisible(true)
       
       // Hide splash screen after 2 seconds
       const timer = setTimeout(() => {
         setIsVisible(false)
         sessionStorage.setItem('splashShown', 'true')
+        
+        // Remove from DOM after animation completes
+        setTimeout(() => {
+          setShouldRender(false)
+        }, 500)
       }, 2000)
 
       return () => clearTimeout(timer)
     }
   }, [])
+
+  if (!shouldRender) return null
 
   return (
     <AnimatePresence>
