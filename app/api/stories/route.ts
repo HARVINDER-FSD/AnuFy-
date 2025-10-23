@@ -5,6 +5,8 @@ import jwt from 'jsonwebtoken';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
 
+export const dynamic = 'force-dynamic';
+
 // Cache for stories (30 seconds for faster updates)
 let storiesCache: any = null;
 let cacheTime: number = 0;
