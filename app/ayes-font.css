@@ -1,0 +1,103 @@
+/* Ayes Font - Custom Unique Mixed Font Style */
+
+.ayes-font {
+  font-weight: 900;
+  text-transform: uppercase;
+  position: relative;
+  display: inline-block;
+  letter-spacing: 0.08em;
+  
+  /* Clean rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Individual letter customization */
+.ayes-font .letter {
+  display: inline-block;
+  position: relative;
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+/* Each letter uses a different unique font with gradient color */
+
+/* Letter A - Bebas Neue (Purple) */
+.ayes-font .letter:nth-child(1) {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.1em;
+  font-weight: 400;
+  color: #667eea;
+}
+
+/* Letter n - Archivo Black (Dark Purple) */
+.ayes-font .letter:nth-child(2) {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 0.95em;
+  font-weight: 900;
+  color: #764ba2;
+}
+
+/* Letter u - Russo One (Pink) */
+.ayes-font .letter:nth-child(3) {
+  font-family: 'Russo One', sans-serif;
+  font-size: 1em;
+  font-weight: 400;
+  color: #f093fb;
+}
+
+/* Letter F - Staatliches (Blue) */
+.ayes-font .letter:nth-child(4) {
+  font-family: 'Staatliches', cursive;
+  font-size: 1.05em;
+  font-weight: 400;
+  color: #4facfe;
+}
+
+/* Letter y - Anton (Cyan) */
+.ayes-font .letter:nth-child(5) {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.08em;
+  font-weight: 400;
+  color: #00f2fe;
+}
+
+/* Simple hover effect */
+.ayes-font:hover .letter {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+/* Gradient text support - apply to container */
+.ayes-font.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Ensure gradient works with individual letters */
+.ayes-font.gradient-text .letter {
+  background: inherit;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Extra bold variant */
+.ayes-font-bold {
+  font-weight: 900;
+  text-shadow: 
+    1px 1px 0px rgba(0,0,0,0.1),
+    2px 2px 0px rgba(0,0,0,0.05);
+}
+
+/* Outline variant for uniqueness */
+.ayes-font-outline {
+  -webkit-text-stroke: 2px currentColor;
+  -webkit-text-fill-color: transparent;
+  text-stroke: 2px currentColor;
+  text-fill-color: transparent;
+}
