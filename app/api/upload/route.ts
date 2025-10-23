@@ -4,18 +4,11 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
 
-// Configure route to handle large files
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
-};
-
-// For App Router (Next.js 13+)
+// For App Router (Next.js 13+) - Configure route to handle large files
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds timeout
+
+// Note: Body size limit is configured in next.config.mjs
 
 // Configure Cloudinary
 cloudinary.config({
