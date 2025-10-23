@@ -9,6 +9,11 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
+  // Force all API routes to be dynamic
+  experimental: {
+    serverComponentsExternalPackages: ['mongodb', 'mongoose', 'bcryptjs', 'jsonwebtoken'],
+  },
+  
   images: {
     remotePatterns: [
       {
@@ -27,10 +32,6 @@ const nextConfig = {
       });
     }
     return config;
-  },
-  
-  experimental: {
-    serverComponentsExternalPackages: ['mongodb', 'mongoose', 'bcryptjs', 'jsonwebtoken'],
   },
 }
 
