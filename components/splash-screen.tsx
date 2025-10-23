@@ -4,19 +4,24 @@ import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 
 export function SplashScreen({ children }: { children: React.ReactNode }) {
-  const [showSplash, setShowSplash] = useState(true)
+  const [showSplash, setShowSplash] = useState(false)
   const [splashComplete, setSplashComplete] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+    
     // Check if splash screen has been shown in this session
     const hasShownSplash = sessionStorage.getItem('splashShown')
     
     if (hasShownSplash) {
       // If already shown, skip splash immediately
-      setShowSplash(false)
       setSplashComplete(true)
     } else {
-      // Show splash screen for 2 seconds
+      // Show splash screen
+      setShowSplash(true)
+      
+      // Hide splash screen after 2 seconds
       const timer = setTimeout(() => {
         setShowSplash(false)
         sessionStorage.setItem('splashShown', 'true')
@@ -30,6 +35,11 @@ export function SplashScreen({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(timer)
     }
   }, [])
+
+  // Don't render anything until mounted (prevents hydration mismatch)
+  if (!mounted) {
+    return null
+  }
 
   return (
     <>
