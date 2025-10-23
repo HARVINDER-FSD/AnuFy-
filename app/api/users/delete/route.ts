@@ -8,7 +8,7 @@ import Comment from '@/models/comment';
 import Message from '@/models/message';
 import Conversation from '@/models/conversation';
 import Bookmark from '@/models/bookmark';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';

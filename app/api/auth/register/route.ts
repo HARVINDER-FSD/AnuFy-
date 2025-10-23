@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from 'mongodb';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 
