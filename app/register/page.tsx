@@ -80,10 +80,27 @@ export default function RegisterPage() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto bg-primary rounded-2xl flex items-center justify-center mb-4">
-            <span className="text-xl font-bold text-primary-foreground">SC</span>
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Join AnuFy</h1>
+          <motion.h1
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="text-5xl mb-6"
+            style={{ 
+              fontFamily: "'Pacifico', 'Dancing Script', cursive",
+              fontWeight: 400,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              letterSpacing: '0.02em',
+              fontStyle: 'normal',
+              transform: 'rotate(-2deg)',
+              lineHeight: '1.4'
+            }}
+          >
+            AnuFy
+          </motion.h1>
+          <h2 className="text-2xl font-bold text-foreground">Join AnuFy</h2>
           <p className="text-muted-foreground mt-2">Create your account to get started</p>
         </div>
 

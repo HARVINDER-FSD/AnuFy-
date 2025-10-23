@@ -8,6 +8,7 @@ import { AuthProvider } from "@/components/auth/auth-provider"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@vercel/analytics/react"
+import { SplashScreen } from "@/components/splash-screen"
 
 // Initialize the Inter font with explicit weight values
 const inter = Inter({
@@ -41,6 +42,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
       </head>
       <body className="antialiased" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <SplashScreen />
         <ThemeProvider storageKey="anufy-theme">
           <AuthProvider>
             <Suspense fallback={
