@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { UserService } from "@/services/user"
 import { verifyAuth } from "@/lib/auth"
 
+
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     // Get user from token

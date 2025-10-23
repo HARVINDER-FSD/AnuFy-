@@ -22,15 +22,15 @@ export async function GET(request: NextRequest) {
         if (tokenCookie) token = tokenCookie.split('=')[1];
       }
     }
-    
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
-    
+
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db();
-    
+
     const reels = await db.collection('reels')
       .aggregate([
         { $sort: { created_at: -1 } },
@@ -69,9 +69,9 @@ export async function GET(request: NextRequest) {
         }
       ])
       .toArray();
-    
+
     await client.close();
-    
+
     const transformedReels = reels.map(reel => ({
       id: reel._id.toString(),
       user_id: reel.user_id.toString(),
@@ -92,9 +92,9 @@ export async function GET(request: NextRequest) {
         is_verified: reel.user.is_verified || false
       }
     }));
-    
+
     return NextResponse.json({ reels: transformedReels });
-    
+
   } catch (error: any) {
     console.error('Error fetching reels:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
@@ -116,27 +116,27 @@ export async function POST(request: NextRequest) {
         if (tokenCookie) token = tokenCookie.split('=')[1];
       }
     }
-    
+
     if (!token) {
       return NextResponse.json({ message: 'You must be logged in to create a reel' }, { status: 401 });
     }
-    
+
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     if (!decoded || !decoded.userId) {
       return NextResponse.json({ message: 'Invalid authentication token' }, { status: 401 });
     }
-    
+
     const userId = decoded.userId;
     const body = await request.json();
     const { video_url, thumbnail_url, caption, location } = body;
-    
+
     if (!video_url) {
       return NextResponse.json({ message: 'Video URL is required' }, { status: 400 });
     }
-    
+
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db();
-    
+
     const newReel = {
       user_id: new ObjectId(userId),
       video_url: video_url,
@@ -150,11 +150,11 @@ export async function POST(request: NextRequest) {
       created_at: new Date(),
       updated_at: new Date()
     };
-    
+
     const result = await db.collection('reels').insertOne(newReel);
-    
+
     await client.close();
-    
+
     return NextResponse.json({
       id: result.insertedId.toString(),
       user_id: userId,
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       created_at: newReel.created_at,
       updated_at: newReel.updated_at
     }, { status: 201 });
-    
+
   } catch (error: any) {
     console.error('Error creating reel:', error);
     const status = error.status || 500;

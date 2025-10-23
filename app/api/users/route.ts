@@ -3,6 +3,9 @@ import { query } from '@/lib/database';
 import { token } from '@/lib/utils';
 
 // Get all users
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

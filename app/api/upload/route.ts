@@ -17,6 +17,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET || 'RV8uRIhI2IL5eyl6InvU5s8OX2g',
 });
 
+
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Get token from Authorization header or cookies

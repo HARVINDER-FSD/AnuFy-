@@ -6,6 +6,9 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
 
 // Get job status and queue information
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Check if user is admin (you might want to add admin role checking)

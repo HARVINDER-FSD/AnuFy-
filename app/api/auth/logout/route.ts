@@ -4,6 +4,9 @@ import { redis } from '@/lib/database';
 import { cookies } from 'next/headers';
 import { verifyAuth } from '@/lib/auth';
 
+
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     // Get the current user from the token

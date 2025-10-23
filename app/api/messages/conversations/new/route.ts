@@ -16,6 +16,9 @@ async function getMongoClient() {
   return cachedClient;
 }
 
+
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { username } = await request.json();

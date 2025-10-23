@@ -6,6 +6,9 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/social
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
 
 // Get user notifications
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     // Check authorization header first
