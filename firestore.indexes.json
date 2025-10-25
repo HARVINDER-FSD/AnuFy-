@@ -9,10 +9,6 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "isDeleted",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "createdAt",
           "order": "ASCENDING"
         }

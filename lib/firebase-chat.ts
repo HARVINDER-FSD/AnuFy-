@@ -195,16 +195,16 @@ export function subscribeToMessages(
   const q = query(
     messagesRef,
     where('conversationId', '==', conversationId),
-    where('isDeleted', '!=', true),
-    orderBy('isDeleted'),
     orderBy('createdAt', 'asc')
   )
   
   return onSnapshot(q, (snapshot) => {
-    const messages: FirebaseMessage[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as FirebaseMessage))
+    const messages: FirebaseMessage[] = snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as FirebaseMessage))
+      .filter(msg => !msg.isDeleted) // Filter deleted messages in code instead of query
     
     callback(messages)
   })
