@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Search, MessageCircle, Edit } from 'lucide-react'
-import { subscribeToConversations, FirebaseConversation } from '@/lib/firebase-chat'
+import { subscribeToConversations, FirebaseConversation, getOrCreateConversation } from '@/lib/firebase-chat'
 import { formatDistanceToNow } from 'date-fns'
 
 interface FirebaseChatListProps {
@@ -15,6 +15,9 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [userDetails, setUserDetails] = useState<{ [key: string]: any }>({})
+  const [showNewMessage, setShowNewMessage] = useState(false)
+  const [searchUsers, setSearchUsers] = useState<any[]>([])
+  const [searchingUsers, setSearchingUsers] = useState(false)
   const { user } = useAuth()
 
   // Subscribe to conversations
@@ -61,6 +64,31 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
     return recipientId ? userDetails[recipientId] : null
   }
 
+  // Search for new users from MongoDB when typing
+  useEffect(() => {
+    if (searchQuery.length > 0) {
+      setSearchingUsers(true)
+      const timer = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/users/search?q=${searchQuery}`, {
+            credentials: 'include'
+          })
+          if (response.ok) {
+            const data = await response.json()
+            setSearchUsers(data.users || [])
+          }
+        } catch (error) {
+          console.error('Error searching users:', error)
+        } finally {
+          setSearchingUsers(false)
+        }
+      }, 300)
+      return () => clearTimeout(timer)
+    } else {
+      setSearchUsers([])
+    }
+  }, [searchQuery])
+
   const filteredConversations = conversations.filter(conv => {
     const recipient = getRecipient(conv)
     if (!recipient) return false
@@ -71,6 +99,11 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
       recipient.full_name?.toLowerCase().includes(searchLower)
     )
   })
+
+  // Filter out users who already have conversations
+  const newUsers = searchUsers.filter(searchUser => 
+    !conversations.some(conv => conv.participants.includes(searchUser._id || searchUser.id))
+  )
 
   if (isLoading) {
     return (
@@ -109,12 +142,48 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
 
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
-        {filteredConversations.length === 0 ? (
+        {/* New Users from Search */}
+        {searchQuery && newUsers.length > 0 && (
+          <div className="border-b border-border">
+            <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">New Conversation</p>
+            {newUsers.map(searchUser => (
+              <div
+                key={searchUser._id || searchUser.id}
+                onClick={async () => {
+                  try {
+                    const conversationId = await getOrCreateConversation(user!.id, searchUser._id || searchUser.id)
+                    onSelectConversation(conversationId, {
+                      id: searchUser._id || searchUser.id,
+                      username: searchUser.username,
+                      full_name: searchUser.full_name,
+                      avatar: searchUser.avatar || searchUser.avatar_url || '/default-avatar.png'
+                    })
+                  } catch (error) {
+                    console.error('Error creating conversation:', error)
+                  }
+                }}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-muted cursor-pointer transition-colors"
+              >
+                <img
+                  src={searchUser.avatar || searchUser.avatar_url || '/default-avatar.png'}
+                  alt=""
+                  className="w-14 h-14 rounded-full"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold truncate">{searchUser.full_name || searchUser.username}</p>
+                  <p className="text-sm text-muted-foreground truncate">@{searchUser.username}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {filteredConversations.length === 0 && newUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-4 text-center">
             <MessageCircle className="w-16 h-16 text-muted-foreground mb-4" />
             <p className="text-lg font-semibold mb-2">No messages yet</p>
             <p className="text-muted-foreground text-sm">
-              {searchQuery ? 'No conversations match your search' : 'Start a conversation to see it here'}
+              {searchQuery ? 'No users found' : 'Search for someone to start chatting'}
             </p>
           </div>
         ) : (
