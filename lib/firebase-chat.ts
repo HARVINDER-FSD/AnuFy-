@@ -110,17 +110,26 @@ export async function sendMessage(
 ): Promise<string> {
   const messagesRef = collection(db, 'messages')
   
-  const message: Omit<FirebaseMessage, 'id'> = {
+  // Build message object without undefined fields
+  const message: any = {
     conversationId,
     senderId,
     content,
     messageType,
-    mediaUrl: options?.mediaUrl,
-    sharedContent: options?.sharedContent,
-    replyTo: options?.replyTo,
     reactions: [],
     createdAt: serverTimestamp(),
     readBy: [senderId]
+  }
+  
+  // Only add optional fields if they have values
+  if (options?.mediaUrl) {
+    message.mediaUrl = options.mediaUrl
+  }
+  if (options?.sharedContent) {
+    message.sharedContent = options.sharedContent
+  }
+  if (options?.replyTo) {
+    message.replyTo = options.replyTo
   }
   
   const docRef = await addDoc(messagesRef, message)

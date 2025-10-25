@@ -73,28 +73,25 @@ export async function GET(request: NextRequest) {
     const client = await getMongoClient();
     const db = client.db();
     
-    // Ensure indexes exist for faster search (only creates if not exists)
-    await db.collection('users').createIndex({ username: 1 });
-    await db.collection('users').createIndex({ full_name: 1 });
-    await db.collection('users').createIndex({ name: 1 });
+    // Ensure indexes exist for faster search (non-blocking, only creates if not exists)
+    db.collection('users').createIndex({ username: 1 }).catch(() => {});
+    db.collection('users').createIndex({ full_name: 1 }).catch(() => {});
+    db.collection('users').createIndex({ name: 1 }).catch(() => {});
     
-    // Use regex with ^ for prefix matching (faster than contains)
-    const searchRegex = new RegExp(`^${query}`, 'i');
+    // Escape special regex characters in query
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     
-    // Search users by username or full_name (case-insensitive, prefix match)
+    // Use case-insensitive search (works without indexes)
+    const searchRegex = new RegExp(escapedQuery, 'i');
+    
+    // Search users by username or full_name (case-insensitive)
     const users = await db.collection('users')
       .find({
-        $and: [
-          {
-            _id: { $ne: new ObjectId(userId) } // Exclude current user
-          },
-          {
-            $or: [
-              { username: searchRegex },
-              { full_name: searchRegex },
-              { name: searchRegex }
-            ]
-          }
+        _id: { $ne: new ObjectId(userId) }, // Exclude current user
+        $or: [
+          { username: searchRegex },
+          { full_name: searchRegex },
+          { name: searchRegex }
         ]
       })
       .project({

@@ -103,12 +103,24 @@ export function FirebaseChat({ conversationId, recipient, onClose }: FirebaseCha
         }
       )
       console.log('✅ Message sent successfully')
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error sending message:', error)
+      
       // Restore message on error
       setNewMessage(messageContent)
       setReplyingTo(replyToData)
-      alert('Failed to send message')
+      
+      // Show specific error message
+      let errorMsg = 'Failed to send message. '
+      if (error.code === 'permission-denied') {
+        errorMsg += 'Check Firebase permissions in console.'
+      } else if (error.code === 'failed-precondition') {
+        errorMsg += 'Firebase indexes required. Check console for links.'
+      } else if (error.message) {
+        errorMsg += error.message
+      }
+      
+      alert(errorMsg)
     } finally {
       setIsSending(false)
     }
