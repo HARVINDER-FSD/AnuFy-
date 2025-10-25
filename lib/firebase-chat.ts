@@ -153,20 +153,28 @@ export async function sendMessage(
   return docRef.id
 }
 
-// Upload media to Firebase Storage
+// Upload media to Cloudinary (instead of Firebase Storage)
 export async function uploadChatMedia(
   file: File,
   conversationId: string,
   senderId: string
 ): Promise<string> {
-  const timestamp = Date.now()
-  const fileName = `${timestamp}_${file.name}`
-  const storageRef = ref(storage, `chat/${conversationId}/${senderId}/${fileName}`)
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('folder', `chat/${conversationId}`)
   
-  await uploadBytes(storageRef, file)
-  const downloadURL = await getDownloadURL(storageRef)
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData,
+    credentials: 'include'
+  })
   
-  return downloadURL
+  if (!response.ok) {
+    throw new Error('Failed to upload media')
+  }
+  
+  const data = await response.json()
+  return data.url
 }
 
 // Listen to messages in real-time
