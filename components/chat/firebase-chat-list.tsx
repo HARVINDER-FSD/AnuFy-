@@ -15,7 +15,6 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [userDetails, setUserDetails] = useState<{ [key: string]: any }>({})
-  const [showNewMessage, setShowNewMessage] = useState(false)
   const [searchUsers, setSearchUsers] = useState<any[]>([])
   const [searchingUsers, setSearchingUsers] = useState(false)
   const { user } = useAuth()
@@ -29,30 +28,37 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
       setConversations(newConversations)
       setIsLoading(false)
       
-      // Fetch user details for all participants
+      // Batch fetch user details for all participants
+      const participantIds = new Set<string>()
       newConversations.forEach(conv => {
         conv.participants.forEach(participantId => {
           if (participantId !== user.id && !userDetails[participantId]) {
-            fetchUserDetails(participantId)
+            participantIds.add(participantId)
           }
         })
       })
+      
+      if (participantIds.size > 0) {
+        fetchBatchUserDetails(Array.from(participantIds))
+      }
     })
 
     return () => unsubscribe()
   }, [user?.id])
 
-  const fetchUserDetails = async (userId: string) => {
+  const fetchBatchUserDetails = async (userIds: string[]) => {
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        credentials: 'include'
+      // Use batch API for faster loading
+      const response = await fetch('/api/users/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userIds })
       })
+      
       if (response.ok) {
         const data = await response.json()
-        setUserDetails(prev => ({
-          ...prev,
-          [userId]: data.user
-        }))
+        setUserDetails(prev => ({ ...prev, ...data.users }))
       }
     } catch (error) {
       console.error('Error fetching user details:', error)
@@ -142,6 +148,19 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
 
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
+        {/* Loading skeleton for user search */}
+        {searchingUsers && (
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-3 animate-pulse">
+              <div className="w-14 h-14 bg-muted rounded-full"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-muted rounded w-32 mb-2"></div>
+                <div className="h-3 bg-muted rounded w-24"></div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* New Users from Search */}
         {searchQuery && newUsers.length > 0 && (
           <div className="border-b border-border">

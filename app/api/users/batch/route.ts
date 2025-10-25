@@ -7,7 +7,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
 
 export const dynamic = 'force-dynamic';
 
-// Cache MongoDB connection
 let cachedClient: MongoClient | null = null;
 
 async function getMongoClient() {
@@ -18,10 +17,9 @@ async function getMongoClient() {
   return cachedClient;
 }
 
-// Search users by username or name
-export async function GET(request: NextRequest) {
+// Batch fetch multiple users by IDs
+export async function POST(request: NextRequest) {
   try {
-    // Get token from Authorization header or cookies
     const authHeader = request.headers.get('Authorization');
     let token = null;
     
@@ -45,7 +43,6 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Verify token
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     
     if (!decoded || !decoded.userId) {
@@ -55,47 +52,26 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const userId = decoded.userId;
+    const body = await request.json();
+    const { userIds } = body;
     
-    // Get search query
-    const url = new URL(request.url);
-    const query = url.searchParams.get('q') || '';
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    
-    if (!query || query.trim().length < 2) {
-      return NextResponse.json({
-        users: [],
-        message: 'Search query must be at least 2 characters'
-      });
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return NextResponse.json(
+        { message: 'userIds array is required' },
+        { status: 400 }
+      );
     }
     
-    // Connect to MongoDB (using cached connection)
+    // Limit to 50 users per request
+    const limitedIds = userIds.slice(0, 50);
+    
     const client = await getMongoClient();
     const db = client.db();
     
-    // Ensure indexes exist for faster search (only creates if not exists)
-    await db.collection('users').createIndex({ username: 1 });
-    await db.collection('users').createIndex({ full_name: 1 });
-    await db.collection('users').createIndex({ name: 1 });
-    
-    // Use regex with ^ for prefix matching (faster than contains)
-    const searchRegex = new RegExp(`^${query}`, 'i');
-    
-    // Search users by username or full_name (case-insensitive, prefix match)
+    // Fetch all users in one query
     const users = await db.collection('users')
       .find({
-        $and: [
-          {
-            _id: { $ne: new ObjectId(userId) } // Exclude current user
-          },
-          {
-            $or: [
-              { username: searchRegex },
-              { full_name: searchRegex },
-              { name: searchRegex }
-            ]
-          }
-        ]
+        _id: { $in: limitedIds.map(id => new ObjectId(id)) }
       })
       .project({
         _id: 1,
@@ -107,26 +83,25 @@ export async function GET(request: NextRequest) {
         is_verified: 1,
         is_private: 1
       })
-      .limit(limit)
       .toArray();
     
-    // Format users for frontend
-    const formattedUsers = users.map(user => ({
-      id: user._id.toString(),
-      username: user.username,
-      full_name: user.full_name || user.name || user.username,
-      avatar: user.avatar_url || user.avatar || '/placeholder-user.jpg',
-      is_verified: user.is_verified || false,
-      is_private: user.is_private || false
-    }));
-    
-    return NextResponse.json({
-      users: formattedUsers,
-      count: formattedUsers.length
+    // Format users as a map for easy lookup
+    const usersMap: { [key: string]: any } = {};
+    users.forEach(user => {
+      usersMap[user._id.toString()] = {
+        id: user._id.toString(),
+        username: user.username,
+        full_name: user.full_name || user.name || user.username,
+        avatar: user.avatar_url || user.avatar || '/placeholder-user.jpg',
+        is_verified: user.is_verified || false,
+        is_private: user.is_private || false
+      };
     });
     
+    return NextResponse.json({ users: usersMap });
+    
   } catch (error: any) {
-    console.error('Error searching users:', error);
+    console.error('Error fetching batch users:', error);
     
     return NextResponse.json(
       { message: 'Internal server error' },
