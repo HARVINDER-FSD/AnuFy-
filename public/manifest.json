@@ -1,0 +1,52 @@
+{
+  "name": "AnuFy - Social Media",
+  "short_name": "AnuFy",
+  "description": "Connect with the World",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/anufy-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/anufy-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/anufy-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["social", "photo", "entertainment"],
+  "shortcuts": [
+    {
+      "name": "Feed",
+      "short_name": "Feed",
+      "description": "View your feed",
+      "url": "/feed",
+      "icons": [{ "src": "/anufy-icon.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Stories",
+      "short_name": "Stories",
+      "description": "View stories",
+      "url": "/stories",
+      "icons": [{ "src": "/anufy-icon.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Reels",
+      "short_name": "Reels",
+      "description": "Watch reels",
+      "url": "/reels",
+      "icons": [{ "src": "/anufy-icon.svg", "sizes": "96x96" }]
+    }
+  ]
+}

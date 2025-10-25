@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MongoClient, ObjectId } from 'mongodb'
 
-const MONGODB_URI = 'mongodb://127.0.0.1:27017/socialmedia'
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia'
 
 // GET /api/posts/user/[userId] - Get all posts by a user (EXACT SAME AS FEED)
 export async function GET(
@@ -13,10 +13,27 @@ export async function GET(
 
     console.log('Fetching posts for user:', userId)
 
+    // Get current user ID from cookie for like/save status
+    const cookies = request.cookies
+    const token = cookies.get('client-token')?.value || cookies.get('token')?.value
+    let currentUserId: string | null = null
+
+    if (token) {
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString())
+        currentUserId = payload.userId || payload.id
+        console.log('Current user ID:', currentUserId)
+      } catch (e) {
+        console.log('Could not decode token')
+      }
+    }
+
     // Connect to MongoDB (same as feed)
     const client = await MongoClient.connect(MONGODB_URI)
     const db = client.db()
     const postsCollection = db.collection('posts')
+    const likesCollection = db.collection('likes')
+    const bookmarksCollection = db.collection('bookmarks')
 
     // Get posts with user information (EXACT SAME AGGREGATION AS FEED)
     const posts = await postsCollection
@@ -65,43 +82,82 @@ export async function GET(
       ])
       .toArray()
 
-    await client.close()
-
     console.log('Found posts:', posts.length)
-    if (posts.length > 0) {
-      console.log('First post user:', posts[0].user)
+
+    // Get like and bookmark status for current user
+    let likedPostIds: Set<string> = new Set()
+    let savedPostIds: Set<string> = new Set()
+
+    if (currentUserId && ObjectId.isValid(currentUserId)) {
+      console.log('[User Posts API] Querying likes for user:', currentUserId)
+      console.log('[User Posts API] Database:', db.databaseName)
+      
+      // Get all posts liked by current user
+      const likes = await likesCollection
+        .find({ user_id: new ObjectId(currentUserId) })
+        .toArray()
+      
+      console.log('[User Posts API] Found likes:', likes.length)
+      if (likes.length > 0) {
+        console.log('[User Posts API] Sample like:', JSON.stringify(likes[0], null, 2))
+        console.log('[User Posts API] All like post_ids:', likes.map(l => l.post_id.toString()))
+      }
+      
+      likedPostIds = new Set(likes.map(like => like.post_id.toString()))
+
+      // Get all posts saved by current user
+      const bookmarks = await bookmarksCollection
+        .find({ user_id: new ObjectId(currentUserId) })
+        .toArray()
+      savedPostIds = new Set(bookmarks.map(bookmark => bookmark.post_id.toString()))
+
+      console.log('[User Posts API] User has liked', likedPostIds.size, 'posts:', Array.from(likedPostIds))
+      console.log('[User Posts API] User has saved', savedPostIds.size, 'posts')
+    } else {
+      console.log('[User Posts API] No current user ID or invalid format')
     }
 
-    // Transform the data to match expected format (SAME AS FEED)
-    const transformedPosts = posts.map(post => ({
-      id: post._id.toString(),
-      user_id: post.user_id.toString(),
-      user: {
-        id: post.user._id.toString(),
-        username: post.user.username,
-        full_name: post.user.full_name || post.user.username,
-        avatar: post.user.avatar_url,
-        avatar_url: post.user.avatar_url,
-        is_verified: post.user.is_verified || false
-      },
-      caption: post.caption,
-      content: post.caption,
-      image: post.media_urls?.[0],
-      media_urls: post.media_urls,
-      media_type: post.media_type,
-      location: post.location,
-      likes: post.likes_count || 0,
-      likes_count: post.likes_count || 0,
-      comments: post.comments_count || 0,
-      comments_count: post.comments_count || 0,
-      shares_count: post.shares_count || 0,
-      created_at: post.created_at,
-      timestamp: post.created_at,
-      is_liked: false, // TODO: Check if current user liked
-      is_saved: false  // TODO: Check if current user saved
-    }))
+    await client.close()
 
-    console.log('Transformed posts:', transformedPosts.length)
+    // Transform the data to match expected format (SAME AS FEED)
+    const transformedPosts = posts.map(post => {
+      const postId = post._id.toString()
+      const isLiked = likedPostIds.has(postId)
+      
+      console.log(`[User Posts API] Post ${postId}: is_liked=${isLiked}, likes_count=${post.likes_count || 0}`)
+      
+      return {
+        id: postId,
+        user_id: post.user_id.toString(),
+        user: {
+          id: post.user._id.toString(),
+          username: post.user.username,
+          full_name: post.user.full_name || post.user.username,
+          avatar: post.user.avatar_url,
+          avatar_url: post.user.avatar_url,
+          is_verified: post.user.is_verified || false
+        },
+        caption: post.caption,
+        content: post.caption,
+        image: post.media_urls?.[0],
+        media_urls: post.media_urls,
+        media_type: post.media_type,
+        location: post.location,
+        likes: post.likes_count || 0,
+        likes_count: post.likes_count || 0,
+        comments: post.comments_count || 0,
+        comments_count: post.comments_count || 0,
+        shares_count: post.shares_count || 0,
+        created_at: post.created_at,
+        timestamp: post.created_at,
+        is_liked: isLiked,
+        liked: isLiked,
+        is_saved: savedPostIds.has(postId),
+        saved: savedPostIds.has(postId)
+      }
+    })
+
+    console.log('[User Posts API] Transformed posts:', transformedPosts.length)
 
     return NextResponse.json({
       success: true,

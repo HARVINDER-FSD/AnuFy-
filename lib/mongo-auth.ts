@@ -8,16 +8,16 @@ import { ensureDbConnected } from './mongodb';
 // MongoDB Auth Service (Real implementation)
 export class MongoAuthService {
   // Register a new user
-  static async register({ username, email, password, full_name }: { 
-    username: string; 
-    email: string; 
-    password: string; 
+  static async register({ username, email, password, full_name }: {
+    username: string;
+    email: string;
+    password: string;
     full_name?: string;
   }) {
     try {
       // Ensure database is connected before proceeding
       await ensureDbConnected();
-      
+
       // Check if user already exists
       const existingUser = await User.findOne({
         $or: [{ email }, { username }]
@@ -66,7 +66,7 @@ export class MongoAuthService {
     try {
       // Ensure database is connected before proceeding
       await ensureDbConnected();
-      
+
       // Find user by email
       const user = await User.findOne({ email });
 
@@ -103,14 +103,14 @@ export class MongoAuthService {
     try {
       // Ensure database is connected before proceeding
       await ensureDbConnected();
-      
+
       // Find user by ID
       const user = await User.findById(userId);
-      
+
       if (!user) {
         throw { status: 404, message: 'User not found' };
       }
-      
+
       // Return user without password
       const { password, ...userWithoutPassword } = user.toObject();
       return userWithoutPassword;

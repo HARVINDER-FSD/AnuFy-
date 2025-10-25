@@ -126,21 +126,21 @@ export function usePosts() {
   const fetchPosts = async (skipCount = 0) => {
     try {
       setLoading(true)
-      
+
       // Direct fetch from our new API endpoint
       const response = await fetch(`/api/posts/instagram/feed?limit=10&skip=${skipCount}`, {
         credentials: 'include', // Include cookies for authentication
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch posts')
       }
-      
+
       const data = await response.json()
-      
+
       // Map API data to UI format if posts exist
       const formattedPosts = data.posts ? data.posts.map(mapApiPostToUiPost) : []
-      
+
       if (skipCount === 0) {
         // First load or refresh
         setPosts(formattedPosts.length > 0 ? formattedPosts : demoPostsData)
@@ -148,7 +148,7 @@ export function usePosts() {
         // Load more - append to existing posts
         setPosts(prev => [...prev, ...formattedPosts])
       }
-      
+
       setHasMore(data.hasMore)
       setError(null)
     } catch (err) {
@@ -183,43 +183,72 @@ export function usePosts() {
   }, [])
 
   const likePost = async (postId: string) => {
+    // Skip API call for demo posts
+    if (postId.startsWith('demo-')) {
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+              ...post,
+              liked: !post.liked,
+              likes: post.liked ? post.likes - 1 : post.likes + 1,
+            }
+            : post,
+        ),
+      )
+      return
+    }
+
     try {
       // Optimistically update UI
       setPosts((prev) =>
         prev.map((post) =>
           post.id === postId
             ? {
-                ...post,
-                liked: !post.liked,
-                likes: post.liked ? post.likes - 1 : post.likes + 1,
-              }
+              ...post,
+              liked: !post.liked,
+              likes: post.liked ? post.likes - 1 : post.likes + 1,
+            }
             : post,
         ),
       )
-      
-      // Send API request
-      const action = posts.find(p => p.id === postId)?.liked ? 'unlike' : 'like'
-      const response = await fetch(`/api/posts/${postId}/${action}`, {
+
+      // Send API request - single endpoint that toggles like/unlike
+      const response = await fetch(`/api/posts/${postId}/like`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        credentials: 'include',
       })
-      
+
       if (!response.ok) {
         // Revert on error
         setPosts((prev) =>
           prev.map((post) =>
             post.id === postId
               ? {
-                  ...post,
-                  liked: !post.liked,
-                  likes: post.liked ? post.likes - 1 : post.likes + 1,
-                }
+                ...post,
+                liked: !post.liked,
+                likes: post.liked ? post.likes - 1 : post.likes + 1,
+              }
               : post,
           ),
         )
         throw new Error('Failed to update like status')
+      }
+
+      // Update with server response
+      const data = await response.json()
+      if (data.success) {
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? {
+                ...post,
+                liked: data.liked,
+                likes: data.likeCount,
+              }
+              : post,
+          ),
+        )
       }
     } catch (err) {
       console.error('Error liking post:', err)
@@ -230,7 +259,7 @@ export function usePosts() {
     try {
       // Optimistically update UI
       setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, bookmarked: !post.bookmarked } : post)))
-      
+
       // Send API request
       const action = posts.find(p => p.id === postId)?.bookmarked ? 'unbookmark' : 'bookmark'
       const response = await fetch(`/api/posts/${postId}/${action}`, {
@@ -239,7 +268,7 @@ export function usePosts() {
           'Content-Type': 'application/json'
         }
       })
-      
+
       if (!response.ok) {
         // Revert on error
         setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, bookmarked: !post.bookmarked } : post)))
@@ -257,13 +286,13 @@ export function usePosts() {
         prev.map((post) =>
           post.id === postId
             ? {
-                ...post,
-                shares: post.shares + 1,
-              }
+              ...post,
+              shares: post.shares + 1,
+            }
             : post,
         ),
       )
-      
+
       // Send API request
       const response = await fetch(`/api/posts/${postId}/share`, {
         method: 'POST',
@@ -271,16 +300,16 @@ export function usePosts() {
           'Content-Type': 'application/json'
         }
       })
-      
+
       if (!response.ok) {
         // Revert on error
         setPosts((prev) =>
           prev.map((post) =>
             post.id === postId
               ? {
-                  ...post,
-                  shares: post.shares - 1,
-                }
+                ...post,
+                shares: post.shares - 1,
+              }
               : post,
           ),
         )
@@ -297,6 +326,11 @@ export function usePosts() {
     console.log('Comment on post:', postId)
   }
 
+  const deletePost = (postId: string) => {
+    // Remove post from UI immediately
+    setPosts((prev) => prev.filter((post) => post.id !== postId))
+  }
+
   return {
     posts,
     loading,
@@ -305,5 +339,6 @@ export function usePosts() {
     bookmarkPost,
     sharePost,
     commentOnPost,
+    deletePost,
   }
 }

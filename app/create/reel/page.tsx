@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import Image from "next/image"
 import Cookies from "js-cookie"
 import { useToast } from "@/hooks/use-toast"
+import { uploadToCloudinary, validateFile } from "@/lib/cloudinary-upload"
 
 export default function CreateReelPage() {
   const router = useRouter()
@@ -27,6 +28,7 @@ export default function CreateReelPage() {
   const [showCaptions, setShowCaptions] = useState(true)
   const [showLocation, setShowLocation] = useState(false)
   const [location, setLocation] = useState("")
+  const [uploadProgress, setUploadProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const { toast } = useToast()
@@ -59,42 +61,8 @@ export default function CreateReelPage() {
       }
       reader.readAsDataURL(file)
 
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const token = Cookies.get('client-token') || Cookies.get('token') || localStorage.getItem('token')
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        })
-
-        if (response.ok) {
-          const result = await response.json()
-          setSelectedVideo(result.url)
-        } else {
-          const errorData = await response.json()
-          toast({
-            title: "Upload failed",
-            description: errorData.message || "Failed to upload video to Cloudinary.",
-            variant: "destructive",
-          })
-          setSelectedVideo(null)
-          setVideoFile(null)
-        }
-      } catch (error: any) {
-        console.error('Upload error:', error)
-        toast({
-          title: "Upload error",
-          description: error.message || "An error occurred during video upload.",
-          variant: "destructive",
-        })
-        setSelectedVideo(null)
-        setVideoFile(null)
-      }
+      // Video preview only - actual upload happens on submit
+      // This avoids the 413 error by not uploading through API
     }
   }
 
@@ -132,7 +100,7 @@ export default function CreateReelPage() {
   }
 
   const handleSubmit = async () => {
-    if (!selectedVideo) {
+    if (!videoFile) {
       toast({
         title: "Video required",
         description: "Please select a video for your reel.",
@@ -142,8 +110,31 @@ export default function CreateReelPage() {
     }
 
     setIsSubmitting(true)
+    setUploadProgress(0)
 
     try {
+      // Validate file
+      const validation = validateFile(videoFile)
+      if (!validation.valid) {
+        toast({
+          title: "Invalid file",
+          description: validation.error,
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Upload to Cloudinary with progress
+      toast({
+        title: "Uploading video...",
+        description: "This may take a moment for large files.",
+      })
+
+      const uploadResult = await uploadToCloudinary(videoFile, (progress) => {
+        setUploadProgress(progress)
+      })
+
+      // Create reel with the uploaded URL
       const token = Cookies.get('client-token') || Cookies.get('token') || localStorage.getItem('token')
       if (!token) {
         toast({
@@ -162,8 +153,8 @@ export default function CreateReelPage() {
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          video_url: selectedVideo,
-          thumbnail_url: selectedVideo, // For now, use the same URL
+          video_url: uploadResult.url,
+          thumbnail_url: uploadResult.url,
           caption,
           location: showLocation ? location : null,
         }),
@@ -189,6 +180,7 @@ export default function CreateReelPage() {
       })
     } finally {
       setIsSubmitting(false)
+      setUploadProgress(0)
     }
   }
 
@@ -205,7 +197,11 @@ export default function CreateReelPage() {
           onClick={handleSubmit}
           disabled={isSubmitting || !selectedVideo}
         >
-          {isSubmitting ? "Sharing..." : "Share Reel"}
+          {isSubmitting
+            ? uploadProgress > 0
+              ? `Uploading ${uploadProgress}%`
+              : "Sharing..."
+            : "Share Reel"}
         </Button>
       </div>
 
@@ -221,7 +217,7 @@ export default function CreateReelPage() {
               >
                 <X className="h-4 w-4" />
               </Button>
-              
+
               <video
                 ref={videoRef}
                 src={selectedVideo}
@@ -231,7 +227,7 @@ export default function CreateReelPage() {
                 muted={isMuted}
                 volume={volume[0] / 100}
               />
-              
+
               {/* Video Controls Overlay */}
               <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -243,7 +239,7 @@ export default function CreateReelPage() {
                   >
                     {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </Button>
-                  
+
                   <Button
                     variant="secondary"
                     size="icon"
@@ -252,7 +248,7 @@ export default function CreateReelPage() {
                   >
                     {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                   </Button>
-                  
+
                   <div className="w-20">
                     <Slider
                       value={volume}
@@ -277,7 +273,7 @@ export default function CreateReelPage() {
               </Button>
             </div>
           )}
-          
+
           <input
             type="file"
             accept="video/*"

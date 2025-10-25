@@ -1,22 +1,14 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Play, X, Send, Trash2 } from "lucide-react"
+import { useState, useRef } from "react"
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Play, Send, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { formatDistanceToNow } from "date-fns"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +19,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { ShareModal } from "@/components/share/share-modal"
+
+// Global lock to prevent multiple simultaneous like requests
+const globalLikeLocks = new Map<string, boolean>()
 
 interface Post {
   id: string
@@ -63,61 +59,85 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
   const [isLiked, setIsLiked] = useState(post.liked)
   const [isBookmarked, setIsBookmarked] = useState(post.bookmarked)
   const [likesCount, setLikesCount] = useState(post.likes)
+  const [likedByUsers, setLikedByUsers] = useState<string[]>(post.likedByFriends || [])
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showMenu, setShowMenu] = useState(false) // Simple menu state
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [isLikeDisabled, setIsLikeDisabled] = useState(false)
+  const isLikingRef = useRef(false)
   const { toast } = useToast()
-  
+
   const isOwner = currentUserId === post.user.id || post.isOwner
 
   const handleLike = async () => {
-    try {
-      const newLikedState = !isLiked
-      setIsLiked(newLikedState)
-      setLikesCount((prev) => (newLikedState ? prev + 1 : prev - 1))
+    // CRITICAL: Check global lock FIRST before any logging
+    // This prevents Fast Refresh from triggering duplicate requests
+    if (globalLikeLocks.get(post.id)) {
+      return // Silently block if already processing
+    }
 
-      // Make API call to like/unlike post with cookies for auth
+    const clickTime = new Date().toISOString()
+    const clickId = Math.random().toString(36).substring(7)
+
+    console.log(`[PostCard ${clickId}] handleLike called at ${clickTime}`)
+    console.log(`[PostCard ${clickId}] Post ID:`, post.id)
+
+    // Check ALL locks and disabled state
+    if (isLikingRef.current || isLikeDisabled) {
+      console.log(`[PostCard ${clickId}] BLOCKED - lock is active or button disabled`)
+      return
+    }
+
+    // Acquire ALL locks and disable button
+    isLikingRef.current = true
+    globalLikeLocks.set(post.id, true)
+    setIsLikeDisabled(true)
+    console.log(`[PostCard ${clickId}] All locks acquired, button disabled, proceeding with API call`)
+
+    const previousLiked = isLiked
+    const previousCount = likesCount
+
+    try {
+      // Optimistic update
+      setIsLiked(!isLiked)
+      setLikesCount(prev => isLiked ? prev - 1 : prev + 1)
+
+      // API call
       const response = await fetch(`/api/posts/${post.id}/like`, {
         method: 'POST',
-        credentials: 'include', // Include cookies for authentication
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast({
-            title: "Authentication required",
-            description: "Please log in to like posts",
-            variant: "destructive"
-          });
-          // Revert state changes
-          setIsLiked(!newLikedState)
-          setLikesCount((prev) => (newLikedState ? prev - 1 : prev + 1))
-          return;
-        } else {
-          throw new Error('Failed to update like status');
-        }
-      }
-      
-      const data = await response.json();
-      
-      // Update with accurate data from server
-      setIsLiked(data.liked)
-      onLike?.(post.id)
+        credentials: 'include',
+      })
 
-      if (data.liked) {
-        toast({
-          title: "Post liked!",
-          description: "You liked this post.",
-        })
-      }
+      if (!response.ok) throw new Error('Failed')
+
+      const data = await response.json()
+
+      console.log('[PostCard] API response:', data)
+      console.log('[PostCard] Setting isLiked to:', data.liked)
+
+      // Update with server data
+      setIsLiked(data.liked)
+      setLikesCount(data.likeCount)
+      setLikedByUsers(data.likedBy || [])
+
+      onLike?.(post.id)
     } catch (error) {
       // Revert on error
-      setIsLiked(!isLiked)
-      setLikesCount((prev) => (isLiked ? prev + 1 : prev - 1))
+      setIsLiked(previousLiked)
+      setLikesCount(previousCount)
       toast({
         title: "Error",
-        description: "Failed to update like status.",
+        description: "Failed to update like",
         variant: "destructive"
       })
+    } finally {
+      // Release locks and re-enable button after delay (10 seconds to absolutely prevent double-clicks)
+      setTimeout(() => {
+        isLikingRef.current = false
+        globalLikeLocks.delete(post.id)
+        setIsLikeDisabled(false)
+        console.log(`[PostCard] All locks released and button re-enabled for post ${post.id}`)
+      }, 10000)
     }
   }
 
@@ -131,9 +151,9 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
         method: 'POST',
         credentials: 'include', // Include cookies for authentication
       });
-      
+
       if (!response.ok) throw new Error('Failed to update bookmark status');
-      
+
       onBookmark?.(post.id)
 
       toast({
@@ -149,21 +169,21 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
       })
     }
   }
-  
+
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [comments, setComments] = useState<any[]>([])
   const [isLoadingComments, setIsLoadingComments] = useState(false)
-  
+
   const fetchComments = async () => {
     setIsLoadingComments(true)
     try {
       const response = await fetch(`/api/posts/${post.id}/comment`, {
         credentials: 'include', // Include cookies for authentication
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch comments');
-      
+
       const data = await response.json();
       setComments(data.comments);
     } catch (error) {
@@ -176,16 +196,16 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
       setIsLoadingComments(false)
     }
   }
-  
+
   const handleComment = () => {
     setShowCommentModal(true)
     fetchComments()
     onComment?.(post.id)
   }
-  
+
   const submitComment = async () => {
     if (!commentText.trim()) return;
-    
+
     try {
       const response = await fetch(`/api/posts/${post.id}/comment`, {
         method: 'POST',
@@ -195,15 +215,15 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
         body: JSON.stringify({ content: commentText }),
         credentials: 'include', // Include cookies for authentication
       });
-      
+
       if (!response.ok) throw new Error('Failed to add comment');
-      
+
       const data = await response.json();
-      
+
       // Add new comment to the list
       setComments([data.comment, ...comments]);
       setCommentText("");
-      
+
       toast({
         title: "Comment added!",
         description: "Your comment has been added to the post.",
@@ -216,65 +236,32 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
       })
     }
   }
-  
-  const handleShare = async () => {
-    // Get token from cookies
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('token='))
-      ?.split('=')[1];
-      
-    if (!token) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to share posts",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    try {
-      // Make API call to share post with auth token
-      const response = await fetch(`/api/posts/${post.id}/share`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast({
-            title: "Authentication required",
-            description: "Please log in to share posts",
-            variant: "destructive"
-          });
-          return;
-        }
-        throw new Error('Failed to share post');
-      }
-      
-      onShare?.(post.id)
-      
-      toast({
-        title: "Post shared!",
-        description: "You shared this post with your followers.",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to share post.",
-        variant: "destructive"
-      })
-    }
+
+  const handleShare = () => {
+    // Open share modal to select users
+    setShowShareModal(true)
+  }
+
+  const handleShareSuccess = () => {
+    // Called when share is successful
+    onShare?.(post.id)
+    toast({
+      title: "Post shared!",
+      description: "You shared this post successfully.",
+    })
   }
 
   const handleDelete = async () => {
     try {
+      const token = localStorage.getItem('token') ||
+        document.cookie.split('; ').find(row => row.startsWith('client-token='))?.split('=')[1];
+
       const response = await fetch(`/api/posts/${post.id}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
 
       if (!response.ok) {
@@ -307,7 +294,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
   }
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-0 md:border rounded-none md:rounded-lg shadow-none md:shadow-sm">
       <CardContent className="p-0">
         {/* Post Header */}
         <div className="flex items-center justify-between p-4">
@@ -328,25 +315,25 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
               <span className="text-xs text-muted-foreground">{post.timestamp}</span>
             </div>
           </div>
-          
+
           {/* Simple Dropdown Menu */}
           <div className="relative">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => setShowMenu(!showMenu)}
             >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
-            
+
             {showMenu && (
               <>
                 {/* Backdrop to close menu */}
-                <div 
-                  className="fixed inset-0 z-40" 
+                <div
+                  className="fixed inset-0 z-40"
                   onClick={() => setShowMenu(false)}
                 />
-                
+
                 {/* Menu */}
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg z-50 border border-gray-200 dark:border-gray-700 py-1">
                   {isOwner && (
@@ -408,7 +395,13 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
         <div className="flex flex-col px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={handleLike}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full"
+                onClick={handleLike}
+                disabled={isLikeDisabled}
+              >
                 <Heart className={`h-6 w-6 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
               </Button>
               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={handleComment}>
@@ -427,90 +420,106 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
               <Bookmark className={`h-6 w-6 ${isBookmarked ? "fill-foreground" : ""}`} />
             </Button>
           </div>
-          
+
           {/* Counts display */}
           <div className="mt-2 px-1 space-y-1">
-            <p className="font-semibold text-sm">{likesCount} likes</p>
-            {post.likedByFriends && post.likedByFriends.length > 0 && (
-              <p className="text-xs">
-                Liked by <span className="font-semibold">{post.likedByFriends[0]}</span>
-                {post.likedByFriends.length > 1 && <span> and <span className="font-semibold">{post.likedByFriends.length - 1} others</span></span>}
+            <p className="font-semibold text-sm">{likesCount} {likesCount === 1 ? 'like' : 'likes'}</p>
+            {likedByUsers && likedByUsers.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Liked by <span className="font-semibold text-foreground">{likedByUsers[0]}</span>
+                {likedByUsers.length > 1 && <span> and <span className="font-semibold text-foreground">{likedByUsers.length - 1} {likedByUsers.length === 2 ? 'other' : 'others'}</span></span>}
               </p>
             )}
             <p className="text-sm text-muted-foreground">{post.comments} comments • {post.shares} shares</p>
           </div>
         </div>
-    </CardContent>
-    
-    {/* Comment Modal */}
-    <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Comments</DialogTitle>
-        </DialogHeader>
-        
-        <div className="max-h-[60vh] overflow-y-auto space-y-4 my-4">
-          {isLoadingComments ? (
-            <div className="text-center py-4">Loading comments...</div>
-          ) : comments.length > 0 ? (
-            comments.map((comment) => (
-              <div key={comment._id || comment.id} className="flex gap-3 pb-3 border-b">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={comment.user_avatar || comment.userAvatar || "/placeholder.svg"} alt={comment.username} />
-                  <AvatarFallback>{comment.username?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">{comment.username}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {comment.created_at ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true }) : 'Just now'}
-                    </span>
-                  </div>
-                  <p className="text-sm mt-1">{comment.content}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-4 text-muted-foreground">No comments yet. Be the first to comment!</div>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Textarea 
-            placeholder="Add a comment..." 
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            className="flex-1 resize-none"
-            rows={2}
-          />
-          <Button 
-            size="icon" 
-            onClick={submitComment} 
-            disabled={!commentText.trim()}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
 
-    {/* Delete Confirmation Dialog */}
-    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete Post?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete your post.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </Card>
-)
+      {/* Comment Modal */}
+      <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Comments</DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] overflow-y-auto space-y-4 my-4">
+            {isLoadingComments ? (
+              <div className="text-center py-4">Loading comments...</div>
+            ) : comments.length > 0 ? (
+              comments.map((comment) => (
+                <div key={comment._id || comment.id} className="flex gap-3 pb-3 border-b">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={comment.user_avatar || comment.userAvatar || "/placeholder.svg"} alt={comment.username} />
+                    <AvatarFallback>{comment.username?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm">{comment.username}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {comment.created_at ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true }) : 'Just now'}
+                      </span>
+                    </div>
+                    <p className="text-sm mt-1">{comment.content}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">No comments yet. Be the first to comment!</div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Textarea
+              placeholder="Add a comment..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              className="flex-1 resize-none"
+              rows={2}
+            />
+            <Button
+              size="icon"
+              onClick={submitComment}
+              disabled={!commentText.trim()}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your post.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        onSuccess={handleShareSuccess}
+        contentType="post"
+        contentId={post.id}
+        previewData={{
+          media_url: post.image || post.video,
+          media_type: post.image ? 'image' : 'video',
+          caption: post.content,
+          username: post.user.username,
+          avatar: post.user.avatar
+        }}
+      />
+    </Card>
+  )
 }

@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/components/auth/auth-provider"
 
 export default function FeedPage() {
-  const { posts, loading, error, likePost, bookmarkPost, sharePost, commentOnPost } = usePosts()
+  const { posts, loading, error, likePost, bookmarkPost, sharePost, commentOnPost, deletePost } = usePosts()
   const { user } = useAuth()
 
   // Check authentication on mount
@@ -34,41 +34,42 @@ export default function FeedPage() {
       <div className="px-4 space-y-4">
         {loading && posts.length === 0
           ? // Loading skeletons
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={`skeleton-${i}`} className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                </div>
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="aspect-square w-full" />
-                <div className="flex gap-4">
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-16" />
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={`skeleton-${i}`} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16" />
                 </div>
               </div>
-            ))
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="aspect-square w-full" />
+              <div className="flex gap-4">
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-8 w-16" />
+              </div>
+            </div>
+          ))
           : posts.map((post, index) => (
-              <motion.div
-                key={post.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-              >
-                <PostCard
-                  post={post}
-                  onLike={likePost}
-                  onComment={commentOnPost}
-                  onShare={sharePost}
-                  onBookmark={bookmarkPost}
-                />
-              </motion.div>
-            ))}
+            <motion.div
+              key={post.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+            >
+              <PostCard
+                post={post}
+                onLike={likePost}
+                onComment={commentOnPost}
+                onShare={sharePost}
+                onBookmark={bookmarkPost}
+                onDelete={deletePost}
+              />
+            </motion.div>
+          ))}
       </div>
 
       {/* All caught up message */}

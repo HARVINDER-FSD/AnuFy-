@@ -55,6 +55,52 @@ export default function UserProfilePage() {
   const [showPostModal, setShowPostModal] = useState(false)
   const [reels, setReels] = useState<any[]>([])
   const [loadingReels, setLoadingReels] = useState(false)
+  const [likedItems, setLikedItems] = useState<Record<string, boolean>>({})
+  
+  // Handle like updates from PostCard or ContentGrid
+  const handleLikeUpdate = (itemId: string, isLiked: boolean, likesCount: number) => {
+    // Update the liked status in local state
+    setLikedItems(prev => ({
+      ...prev,
+      [itemId]: isLiked
+    }))
+    
+    // Update posts if the liked item is a post
+    if (profile?.posts) {
+      setProfile(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          posts: prev.posts.map(post => 
+            post.id === itemId 
+              ? { 
+                  ...post, 
+                  is_liked: isLiked,
+                  liked: isLiked,
+                  likes: likesCount,
+                  likes_count: likesCount
+                }
+              : post
+          )
+        }
+      })
+    }
+    
+    // Update reels if the liked item is a reel
+    setReels(prev => 
+      prev.map(reel => 
+        reel.id === itemId 
+          ? { 
+              ...reel, 
+              is_liked: isLiked,
+              liked: isLiked,
+              likes: likesCount,
+              likes_count: likesCount
+            }
+          : reel
+      )
+    )
+  }
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -92,6 +138,15 @@ export default function UserProfilePage() {
         setProfile(data)
         setIsFollowing(data.is_following)
         setIsPending(data.is_pending || false)
+        
+        // Initialize likedItems state from posts data to ensure persistence after refresh
+        if (data.posts && data.posts.length > 0) {
+          const initialLikedState: Record<string, boolean> = {};
+          data.posts.forEach((post: any) => {
+            initialLikedState[post.id] = post.is_liked || false;
+          });
+          setLikedItems(initialLikedState);
+        }
       } catch (error) {
         console.error("Profile fetch error:", error);
         toast({
@@ -251,7 +306,19 @@ export default function UserProfilePage() {
       if (response.ok) {
         const data = await response.json()
         console.log('Reels data received:', data)
-        setReels(data.reels || data.data || [])
+        const reelsData = data.reels || data.data || []
+        setReels(reelsData)
+        
+        // Update likedItems state with reels like status
+        if (reelsData.length > 0) {
+          setLikedItems(prev => {
+            const updatedLikedItems = {...prev}
+            reelsData.forEach((reel: any) => {
+              updatedLikedItems[reel.id] = reel.is_liked || false
+            })
+            return updatedLikedItems
+          })
+        }
       } else {
         const errorData = await response.json()
         console.error('Error fetching reels:', errorData)
@@ -280,6 +347,18 @@ export default function UserProfilePage() {
       fetchReels()
     }
   }, [profile?.id])
+
+  // Handle post click to open modal
+  const handlePostClick = (post: any) => {
+    // Ensure the post has the latest like status from our state
+    const updatedPost = {
+      ...post,
+      is_liked: likedItems[post.id] !== undefined ? likedItems[post.id] : (post.is_liked || false),
+      liked: likedItems[post.id] !== undefined ? likedItems[post.id] : (post.is_liked || false)
+    }
+    setSelectedPost(updatedPost)
+    setShowPostModal(true)
+  }
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>
@@ -471,11 +550,15 @@ export default function UserProfilePage() {
                         comments: post.comments_count || 0,
                         shares: post.shares_count || 0,
                         timestamp: post.created_at || post.timestamp,
-                        liked: post.is_liked || false,
+                        liked: likedItems[post.id] !== undefined ? likedItems[post.id] : (post.is_liked || false),
                         bookmarked: post.is_bookmarked || false,
                         isOwner: profile.is_own_profile,
                       }}
                       currentUserId={user?.id}
+                      onLike={(postId) => {
+                        // This will be called after the API call in PostCard's handleLike
+                        // The actual state update happens in handleLikeUpdate
+                      }}
                       onDelete={(postId) => {
                         // Remove post from profile
                         setProfile(prev => {
@@ -522,6 +605,7 @@ export default function UserProfilePage() {
                         // Open reel in modal or navigate to reel page
                         router.push(`/reels?id=${reel.id}`)
                       }}
+                      data-liked={likedItems[reel.id] !== undefined ? likedItems[reel.id] : (reel.is_liked || false)}
                     >
                       {/* Video thumbnail */}
                       <video
@@ -744,6 +828,7 @@ export default function UserProfilePage() {
               }
             })
           }}
+          onLikeUpdate={handleLikeUpdate}
         />
       </div>
     </div>

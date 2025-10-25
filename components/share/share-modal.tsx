@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 interface ShareModalProps {
   isOpen: boolean
   onClose: () => void
+  onSuccess?: () => void
   contentType: 'post' | 'story'
   contentId: string
   previewData?: {
@@ -39,7 +40,7 @@ interface Conversation {
   unreadCount?: number
 }
 
-export function ShareModal({ isOpen, onClose, contentType, contentId, previewData }: ShareModalProps) {
+export function ShareModal({ isOpen, onClose, onSuccess, contentType, contentId, previewData }: ShareModalProps) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedConversations, setSelectedConversations] = useState<Set<string>>(new Set())
@@ -57,8 +58,8 @@ export function ShareModal({ isOpen, onClose, contentType, contentId, previewDat
     setIsLoading(true)
     try {
       const cookies = document.cookie.split(';')
-      const tokenCookie = cookies.find(c => c.trim().startsWith('client-token=')) || 
-                         cookies.find(c => c.trim().startsWith('token='))
+      const tokenCookie = cookies.find(c => c.trim().startsWith('client-token=')) ||
+        cookies.find(c => c.trim().startsWith('token='))
       const token = tokenCookie?.split('=')[1]
 
       console.log('[ShareModal] Token found:', !!token)
@@ -70,7 +71,7 @@ export function ShareModal({ isOpen, onClose, contentType, contentId, previewDat
       }
 
       const response = await fetch('/api/messages/conversations?limit=50', {
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
@@ -110,8 +111,8 @@ export function ShareModal({ isOpen, onClose, contentType, contentId, previewDat
     setIsSending(true)
     try {
       const cookies = document.cookie.split(';')
-      const tokenCookie = cookies.find(c => c.trim().startsWith('client-token=')) || 
-                         cookies.find(c => c.trim().startsWith('token='))
+      const tokenCookie = cookies.find(c => c.trim().startsWith('client-token=')) ||
+        cookies.find(c => c.trim().startsWith('token='))
       const token = tokenCookie?.split('=')[1]
 
       if (!token) return
@@ -140,8 +141,9 @@ export function ShareModal({ isOpen, onClose, contentType, contentId, previewDat
       )
 
       await Promise.all(sharePromises)
-      
-      // Success - close modal
+
+      // Success - call success callback and close modal
+      onSuccess?.()
       onClose()
       setSelectedConversations(new Set())
       setMessage('')
@@ -201,9 +203,9 @@ export function ShareModal({ isOpen, onClose, contentType, contentId, previewDat
                   >
                     <div className="relative">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage 
-                          src={conv.user?.avatar} 
-                          alt={conv.user?.username} 
+                        <AvatarImage
+                          src={conv.user?.avatar}
+                          alt={conv.user?.username}
                         />
                         <AvatarFallback>
                           {conv.user?.username?.[0]?.toUpperCase()}

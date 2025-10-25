@@ -24,6 +24,7 @@ interface InstagramPostModalProps {
     isOpen: boolean
     onClose: () => void
     onDelete?: (itemId: string) => void
+    onLikeUpdate?: (itemId: string, isLiked: boolean, likesCount: number) => void
 }
 
 interface Comment {
@@ -61,6 +62,7 @@ export function InstagramPostModal({
     isOpen,
     onClose,
     onDelete,
+    onLikeUpdate,
 }: InstagramPostModalProps) {
     const [comments, setComments] = useState<Comment[]>([])
     const [likes, setLikes] = useState<Like[]>([])
@@ -75,6 +77,7 @@ export function InstagramPostModal({
     const [isLoadingLikes, setIsLoadingLikes] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [showShareModal, setShowShareModal] = useState(false)
+    const isLikingRef = useRef(false) // Use ref to prevent double-clicks immediately
     const { toast } = useToast()
 
     const isOwner = currentUserId === item?.user?.id || item?.isOwner
@@ -88,6 +91,14 @@ export function InstagramPostModal({
             setCommentsCount(item.comments || item.comments_count || 0)
         }
     }, [isOpen, item])
+
+    // Sync state when item prop changes (for like updates from parent)
+    useEffect(() => {
+        if (item) {
+            setIsLiked(item.liked || item.is_liked || false)
+            setLikesCount(item.likes || item.likes_count || 0)
+        }
+    }, [item?.liked, item?.is_liked, item?.likes, item?.likes_count])
 
     const fetchComments = async () => {
         setIsLoadingComments(true)
@@ -137,38 +148,71 @@ export function InstagramPostModal({
     }
 
     const handleLike = async () => {
+        // Prevent double-clicks using ref (works immediately)
+        if (isLikingRef.current) {
+            console.log('[Modal] Already processing like, ignoring click')
+            return
+        }
+
         const previousLiked = isLiked
         const previousCount = likesCount
+        const newLikedState = !isLiked
+        const newCount = isLiked ? likesCount - 1 : likesCount + 1
+
+        console.log('[Modal] Like clicked - current state:', { isLiked, likesCount, itemId: item.id })
+
+        isLikingRef.current = true
 
         // Optimistic update
-        setIsLiked(!isLiked)
-        setLikesCount(prev => isLiked ? prev - 1 : prev + 1)
+        setIsLiked(newLikedState)
+        setLikesCount(newCount)
 
         try {
             const endpoint = type === "reels"
                 ? `/api/reels/${item.id}/like`
                 : `/api/posts/${item.id}/like`
 
-            const method = previousLiked ? "DELETE" : "POST"
+            console.log('[Modal] Calling API:', endpoint)
 
             const response = await fetch(endpoint, {
-                method,
+                method: "POST",
                 credentials: "include",
             })
 
             if (!response.ok) {
+                console.error('[Modal] API error:', response.status)
                 // Revert on error
                 setIsLiked(previousLiked)
                 setLikesCount(previousCount)
                 throw new Error("Failed to update like")
             }
+
+            const data = await response.json()
+            console.log('[Modal] API response:', data)
+
+            // Update with server response
+            setIsLiked(data.liked)
+            setLikesCount(data.likeCount)
+
+            // Notify parent component about the like update
+            if (onLikeUpdate) {
+                console.log('[Modal] Notifying parent:', { itemId: item.id, liked: data.liked, count: data.likeCount })
+                onLikeUpdate(item.id, data.liked, data.likeCount)
+            } else {
+                console.warn('[Modal] No onLikeUpdate callback provided')
+            }
         } catch (error) {
-            console.error("Error toggling like:", error)
+            console.error("[Modal] Error toggling like:", error)
             toast({
                 title: "Error",
                 description: "Failed to update like status",
                 variant: "destructive",
             })
+        } finally {
+            // Longer delay to prevent accidental double-clicks
+            setTimeout(() => {
+                isLikingRef.current = false
+            }, 1000)
         }
     }
 
@@ -513,7 +557,7 @@ export function InstagramPostModal({
                                     >
                                         <MessageCircle className="h-6 w-6" />
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => setShowShareModal(true)}
                                         className="hover:opacity-70 transition-opacity"
                                     >

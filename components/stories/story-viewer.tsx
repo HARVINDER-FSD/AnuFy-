@@ -88,9 +88,19 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
   const [viewsTab, setViewsTab] = useState<'views' | 'likes'>('views')
   const { toast } = useToast()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [videoDuration, setVideoDuration] = useState<number>(15)
+  const [isMentioned, setIsMentioned] = useState(false)
+  const [isReposting, setIsReposting] = useState(false)
 
   const currentStory = stories[currentIndex]
-  const duration = 5000 // 5 seconds per story
+
+  // Dynamic duration: 15s for images, actual duration (max 60s) for videos
+  const duration = currentStory?.type === 'video'
+    ? Math.min(videoDuration * 1000, 60000) // Max 60 seconds for videos
+    : 15000 // 15 seconds for images
+
   const isOwner = currentUserId === currentStory?.user.id || currentStory?.isOwner
 
   // Filters mapping
@@ -127,6 +137,7 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
 
   useEffect(() => {
     setProgress(0)
+    setVideoDuration(15) // Reset to default
     setIsLiked(currentStory?.liked || false)
 
     // Record view
@@ -137,6 +148,35 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
     // Check if user has liked this story
     if (currentStory) {
       checkLikeStatus()
+      checkIfMentioned()
+    }
+
+    // Play music if available
+    if (currentStory?.music && audioRef.current) {
+      let musicData: any = currentStory.music
+      if (typeof currentStory.music === 'string') {
+        try {
+          musicData = JSON.parse(currentStory.music)
+        } catch {
+          musicData = null
+        }
+      }
+
+      if (musicData?.previewUrl) {
+        audioRef.current.src = musicData.previewUrl
+        audioRef.current.volume = 0.5 // 50% volume
+        audioRef.current.play().catch(err => {
+          console.log('Audio autoplay prevented:', err)
+        })
+      }
+    }
+
+    // Cleanup: stop music when story changes
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      }
     }
   }, [currentIndex, currentStory])
 
@@ -177,6 +217,62 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
       }
     } catch (error) {
       console.error('Error checking like status:', error)
+    }
+  }
+
+  const checkIfMentioned = () => {
+    // Check if current user is mentioned in this story
+    const mentionStickers = currentStory?.stickers?.filter((s: any) => s.type === 'mention') || []
+    // Get current user's username from localStorage or cookies
+    const currentUsername = localStorage.getItem('username') ||
+      document.cookie.split('username=')[1]?.split(';')[0]
+
+    const mentioned = mentionStickers.some((s: any) =>
+      s.data?.username === currentUsername || s.data?.username === `@${currentUsername}`
+    )
+    setIsMentioned(mentioned)
+  }
+
+  const handleRepost = async () => {
+    if (isReposting) return
+
+    setIsReposting(true)
+    try {
+      const token = getToken()
+      const response = await fetch(`/api/stories/${currentStory.id}/repost`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Story reposted!",
+          description: "The story has been added to your stories"
+        })
+        // Optionally close viewer or navigate
+        setTimeout(() => {
+          onClose()
+        }, 1000)
+      } else {
+        const error = await response.json()
+        toast({
+          title: "Failed to repost",
+          description: error.message || "Please try again",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error reposting story:', error)
+      toast({
+        title: "Error",
+        description: "Failed to repost story",
+        variant: "destructive"
+      })
+    } finally {
+      setIsReposting(false)
     }
   }
 
@@ -371,6 +467,9 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
         className="fixed inset-0 z-50 bg-black flex items-center justify-center overflow-hidden"
         style={{ touchAction: 'none' }}
       >
+        {/* Hidden audio player for music */}
+        <audio ref={audioRef} loop />
+
         {/* Progress bars */}
         <div className="absolute top-4 left-4 right-4 flex gap-1 z-10">
           {stories.map((_, index) => (
@@ -400,10 +499,22 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
         {/* Story Content */}
         <div
           className="relative w-full h-full max-w-md mx-auto"
-          onMouseDown={() => setIsPaused(true)}
-          onMouseUp={() => setIsPaused(false)}
-          onTouchStart={() => setIsPaused(true)}
-          onTouchEnd={() => setIsPaused(false)}
+          onMouseDown={() => {
+            setIsPaused(true)
+            if (audioRef.current) audioRef.current.pause()
+          }}
+          onMouseUp={() => {
+            setIsPaused(false)
+            if (audioRef.current && currentStory?.music) audioRef.current.play().catch(() => { })
+          }}
+          onTouchStart={() => {
+            setIsPaused(true)
+            if (audioRef.current) audioRef.current.pause()
+          }}
+          onTouchEnd={() => {
+            setIsPaused(false)
+            if (audioRef.current && currentStory?.music) audioRef.current.play().catch(() => { })
+          }}
         >
           {/* Media with filter */}
           {currentStory.type === "image" ? (
@@ -415,12 +526,24 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
             />
           ) : (
             <video
+              ref={videoRef}
               src={currentStory.media}
               className="w-full h-full object-contain"
               style={{ filter: currentStory.filter ? filters[currentStory.filter] : '' }}
               autoPlay
               muted
-              loop
+              playsInline
+              onLoadedMetadata={(e) => {
+                const video = e.currentTarget
+                // Set video duration (max 60 seconds)
+                setVideoDuration(Math.min(video.duration, 60))
+              }}
+              onEnded={() => {
+                // Auto-advance when video ends (if shorter than 60s)
+                if (videoRef.current && videoRef.current.duration < 60) {
+                  onNext()
+                }
+              }}
             />
           )}
 
@@ -475,13 +598,40 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
             style={{ zIndex: 5 }}
           />
 
-          {/* Music indicator */}
-          {currentStory.music && (
-            <div className="absolute top-20 right-4 z-10 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-3 py-2">
-              <Music className="h-4 w-4 text-white animate-pulse" />
-              <span className="text-white text-xs">Music</span>
-            </div>
-          )}
+          {/* Music indicator - Sliding Marquee */}
+          {currentStory.music && (() => {
+            // Parse music data (could be string or object)
+            let musicData: any = currentStory.music
+            if (typeof currentStory.music === 'string') {
+              try {
+                musicData = JSON.parse(currentStory.music)
+              } catch {
+                musicData = { title: currentStory.music, artist: '' }
+              }
+            }
+
+            const musicTitle = musicData?.title || 'Unknown Song'
+            const musicArtist = musicData?.artist || ''
+            const displayText = musicArtist ? `${musicTitle} • ${musicArtist}` : musicTitle
+
+            return (
+              <div className="absolute top-16 left-4 right-4 z-10 overflow-hidden">
+                <div className="bg-black/60 backdrop-blur-md rounded-full px-4 py-2.5 flex items-center gap-3 shadow-lg">
+                  <Music className="h-4 w-4 text-white flex-shrink-0 animate-pulse" />
+                  <div className="flex-1 overflow-hidden">
+                    <div className="animate-marquee whitespace-nowrap">
+                      <span className="text-white text-sm font-medium inline-block pr-8">
+                        {displayText}
+                      </span>
+                      <span className="text-white text-sm font-medium inline-block pr-8">
+                        {displayText}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Navigation areas - Exclude bottom 100px for controls */}
           <div className="absolute inset-0 bottom-24 flex">
@@ -594,8 +744,19 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
               </div>
             </div>
           ) : (
-            /* Viewer actions: Reply, Like, Menu */
+            /* Viewer actions: Reply, Like, Repost (if mentioned), Menu */
             <div className="p-3 sm:p-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-auto">
+              {isMentioned && (
+                <div className="mb-3 flex justify-center">
+                  <Button
+                    onClick={handleRepost}
+                    disabled={isReposting}
+                    className="bg-white text-black hover:bg-white/90 rounded-full px-6 py-2 font-semibold"
+                  >
+                    {isReposting ? "Reposting..." : "Add to Your Story"}
+                  </Button>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <div className="flex-1 flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 sm:px-4 py-2.5 sm:py-2">
                   <Input

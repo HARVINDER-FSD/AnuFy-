@@ -20,6 +20,7 @@ cloudinary.config({
 
 export const dynamic = 'force-dynamic';
 
+// Generate Cloudinary upload signature
 export async function POST(request: NextRequest) {
   try {
     // Get token from Authorization header or cookies
@@ -66,56 +67,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-
-    if (!file) {
-      return NextResponse.json(
-        { message: 'No file provided' },
-        { status: 400 }
-      );
-    }
-
-    // Check file size (max 50MB for videos, 10MB for images)
-    const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { message: `File too large. Maximum size is ${file.type.startsWith('video/') ? '50MB' : '10MB'}` },
-        { status: 400 }
-      );
-    }
-
-    // Determine if it's a video or image
-    const isVideo = file.type.startsWith('video/');
+    // Generate upload signature for client-side upload
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const folder = 'social-media';
     const publicId = `${decoded.userId}_${Date.now()}`;
 
-    // Convert file to base64 for Cloudinary upload
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64 = buffer.toString('base64');
-    const dataURI = `data:${file.type};base64,${base64}`;
-
-    // Upload to Cloudinary using data URI
-    const uploadResult = await cloudinary.uploader.upload(dataURI, {
-      folder: isVideo ? 'social-media/videos' : 'social-media/images',
-      public_id: publicId,
-      resource_type: 'auto',
-    });
-
+    // Return Cloudinary config for direct upload from client
     return NextResponse.json({
       success: true,
-      url: uploadResult.secure_url,
-      public_id: uploadResult.public_id,
-      width: uploadResult.width,
-      height: uploadResult.height,
-      format: uploadResult.format,
-      size: uploadResult.bytes,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'dcm470yhl',
+      uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || 'profilePicsUnsigned',
+      folder: folder,
+      publicId: publicId,
+      timestamp: timestamp,
     });
 
   } catch (error: any) {
-    console.error('Upload error:', error);
+    console.error('Upload config error:', error);
     return NextResponse.json(
-      { message: error.message || 'Upload failed' },
+      { message: error.message || 'Failed to generate upload config' },
       { status: 500 }
     );
   }

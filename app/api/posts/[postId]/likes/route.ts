@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MongoClient, ObjectId } from 'mongodb'
 
-const MONGODB_URI = 'mongodb://127.0.0.1:27017/socialmedia'
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia'
 
 // GET /api/posts/[postId]/likes - Get all users who liked a post
 export async function GET(

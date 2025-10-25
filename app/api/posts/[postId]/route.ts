@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/database';
-import { token } from '@/lib/utils';
+import { MongoClient, ObjectId } from 'mongodb';
+import jwt from 'jsonwebtoken';
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
+const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
+
+export const dynamic = 'force-dynamic';
 
 // Get a specific post by ID
 export async function GET(
@@ -9,29 +14,50 @@ export async function GET(
 ) {
   try {
     const postId = params.postId;
-    
-    const result = await query(
-      `SELECT p.id, p.user_id, p.caption, p.media_urls, p.media_type, p.location, 
-              p.created_at, p.updated_at, p.likes_count, p.comments_count,
-              u.username, u.full_name, u.avatar_url, u.is_verified
-       FROM posts p
-       JOIN users u ON p.user_id = u.id
-       WHERE p.id = $1 AND p.is_archived = false`,
-      [postId]
-    );
-    
-    if (result.rows.length === 0) {
+
+    const client = await MongoClient.connect(MONGODB_URI);
+    const db = client.db();
+
+    const post = await db.collection('posts').findOne({
+      _id: new ObjectId(postId),
+      is_archived: false
+    });
+
+    if (!post) {
+      await client.close();
       return NextResponse.json(
         { message: 'Post not found' },
         { status: 404 }
       );
     }
-    
-    return NextResponse.json(result.rows[0]);
-    
+
+    // Get user info
+    const user = await db.collection('users').findOne({
+      _id: post.user_id
+    });
+
+    await client.close();
+
+    return NextResponse.json({
+      id: post._id.toString(),
+      user_id: post.user_id.toString(),
+      caption: post.caption,
+      media_urls: post.media_urls,
+      media_type: post.media_type,
+      location: post.location,
+      created_at: post.created_at,
+      updated_at: post.updated_at,
+      likes_count: post.likes_count || 0,
+      comments_count: post.comments_count || 0,
+      username: user?.username,
+      full_name: user?.name,
+      avatar_url: user?.avatar,
+      is_verified: user?.verified || false
+    });
+
   } catch (error: any) {
     console.error('Error fetching post:', error);
-    
+
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -47,90 +73,84 @@ export async function PUT(
   try {
     const postId = params.postId;
     const authHeader = request.headers.get('Authorization');
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { message: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     const accessToken = authHeader.split(' ')[1];
-    const payload = token.verify(accessToken);
-    
-    if (!payload || !payload.userId) {
+    const decoded = jwt.verify(accessToken, JWT_SECRET) as any;
+
+    if (!decoded || !decoded.userId) {
       return NextResponse.json(
         { message: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
-    const userId = payload.userId;
-    
+
+    const userId = decoded.userId;
+
+    const client = await MongoClient.connect(MONGODB_URI);
+    const db = client.db();
+
     // Check if the post exists and belongs to the user
-    const checkResult = await query(
-      'SELECT user_id FROM posts WHERE id = $1 AND is_archived = false',
-      [postId]
-    );
-    
-    if (checkResult.rows.length === 0) {
+    const post = await db.collection('posts').findOne({
+      _id: new ObjectId(postId),
+      is_archived: false
+    });
+
+    if (!post) {
+      await client.close();
       return NextResponse.json(
         { message: 'Post not found' },
         { status: 404 }
       );
     }
-    
-    if (checkResult.rows[0].user_id !== userId) {
+
+    if (post.user_id.toString() !== userId) {
+      await client.close();
       return NextResponse.json(
         { message: 'You are not authorized to update this post' },
         { status: 403 }
       );
     }
-    
+
     const body = await request.json();
     const { caption, location } = body;
-    
-    const updateFields = [];
-    const values = [];
-    let valueIndex = 1;
-    
+
+    const updateFields: any = {
+      updated_at: new Date()
+    };
+
     if (caption !== undefined) {
-      updateFields.push(`caption = $${valueIndex}`);
-      values.push(caption);
-      valueIndex++;
+      updateFields.caption = caption;
     }
-    
+
     if (location !== undefined) {
-      updateFields.push(`location = $${valueIndex}`);
-      values.push(location);
-      valueIndex++;
+      updateFields.location = location;
     }
-    
-    if (updateFields.length === 0) {
-      return NextResponse.json(
-        { message: 'No fields to update' },
-        { status: 400 }
-      );
-    }
-    
-    values.push(postId);
-    
-    const result = await query(
-      `UPDATE posts
-       SET ${updateFields.join(', ')}, updated_at = NOW()
-       WHERE id = $${valueIndex}
-       RETURNING id, user_id, caption, media_urls, media_type, location, created_at, updated_at`,
-      values
+
+    // Update the post
+    await db.collection('posts').updateOne(
+      { _id: new ObjectId(postId) },
+      { $set: updateFields }
     );
-    
-    return NextResponse.json(result.rows[0]);
-    
+
+    await client.close();
+
+    return NextResponse.json({
+      message: 'Post updated successfully'
+    });
+
   } catch (error: any) {
     console.error('Error updating post:', error);
-    
+
     const status = error.status || 500;
     const message = error.message || 'Internal server error';
-    
+
     return NextResponse.json(
       { message },
       { status }
@@ -146,62 +166,75 @@ export async function DELETE(
   try {
     const postId = params.postId;
     const authHeader = request.headers.get('Authorization');
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { message: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
+
     const accessToken = authHeader.split(' ')[1];
-    const payload = token.verify(accessToken);
-    
-    if (!payload || !payload.userId) {
+    const decoded = jwt.verify(accessToken, JWT_SECRET) as any;
+
+    if (!decoded || !decoded.userId) {
       return NextResponse.json(
         { message: 'Unauthorized' },
         { status: 401 }
       );
     }
-    
-    const userId = payload.userId;
-    
+
+    const userId = decoded.userId;
+
+    // Connect to MongoDB
+    const client = await MongoClient.connect(MONGODB_URI);
+    const db = client.db();
+
     // Check if the post exists and belongs to the user
-    const checkResult = await query(
-      'SELECT user_id FROM posts WHERE id = $1 AND is_archived = false',
-      [postId]
-    );
-    
-    if (checkResult.rows.length === 0) {
+    const post = await db.collection('posts').findOne({
+      _id: new ObjectId(postId),
+      is_archived: false
+    });
+
+    if (!post) {
+      await client.close();
       return NextResponse.json(
         { message: 'Post not found' },
         { status: 404 }
       );
     }
-    
-    if (checkResult.rows[0].user_id !== userId) {
+
+    if (post.user_id.toString() !== userId) {
+      await client.close();
       return NextResponse.json(
         { message: 'You are not authorized to delete this post' },
         { status: 403 }
       );
     }
-    
+
     // Soft delete the post
-    await query(
-      'UPDATE posts SET is_archived = true, updated_at = NOW() WHERE id = $1',
-      [postId]
+    await db.collection('posts').updateOne(
+      { _id: new ObjectId(postId) },
+      {
+        $set: {
+          is_archived: true,
+          updated_at: new Date()
+        }
+      }
     );
-    
+
+    await client.close();
+
     return NextResponse.json(
       { message: 'Post deleted successfully' }
     );
-    
+
   } catch (error: any) {
     console.error('Error deleting post:', error);
-    
+
     const status = error.status || 500;
     const message = error.message || 'Internal server error';
-    
+
     return NextResponse.json(
       { message },
       { status }

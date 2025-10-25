@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { Toaster } from "@/components/ui/toaster"
 import { Analytics } from "@vercel/analytics/react"
 import { SplashScreen } from "@/components/splash-screen"
+import { LoadingBar } from "@/components/loading-bar"
 
 // Initialize the Inter font with explicit weight values
 const inter = Inter({
@@ -25,6 +26,24 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
   },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'AnuFy',
+  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' }
+  ],
 }
 
 export default function RootLayout({
@@ -42,6 +61,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
       </head>
       <body className="antialiased" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <LoadingBar />
         <SplashScreen>
           <ThemeProvider storageKey="anufy-theme">
             <AuthProvider>

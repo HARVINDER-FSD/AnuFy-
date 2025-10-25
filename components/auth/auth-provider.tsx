@@ -39,10 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast()
 
   useEffect(() => {
-    // Optimized token verification for faster loading
+    // Ultra-fast token verification - instant loading
     const verifyToken = async () => {
       try {
-        // Get token using utility
         const token = getAuthToken()
         
         if (!token) {
@@ -51,10 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
         
-        // Decode token immediately for instant user data
+        // Decode token instantly - no API call needed
         const decoded = jwtDecode(token) as any
         
-        // Set user from token immediately (fast)
+        // Set user immediately from token (0ms delay)
         const quickUser = {
           id: decoded.userId || decoded.sub,
           username: decoded.username || '',
@@ -68,18 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           posts_count: decoded.posts_count || 0
         }
         setUser(quickUser)
-        setLoading(false) // Stop loading immediately
-        
-        // Fetch fresh data in background (non-blocking)
-        fetch("/api/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: AbortSignal.timeout(3000) // 3s timeout
-        })
-          .then(res => res.ok ? res.json() : null)
-          .then(userData => {
-            if (userData) setUser(userData)
-          })
-          .catch(() => {}) // Silently fail, already have token data
+        setLoading(false) // Instant - no waiting
         
       } catch (error) {
         console.error("Auth error:", error)

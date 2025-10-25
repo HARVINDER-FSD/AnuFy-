@@ -32,10 +32,11 @@ export default function ProfilePage() {
   const [reels, setReels] = useState<any[]>([])
   const [savedItems, setSavedItems] = useState<any[]>([])
   const [taggedItems, setTaggedItems] = useState<any[]>([])
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({})
   const router = useRouter()
   const { toast } = useToast()
   const { user, logout, loading } = useAuth()
-  
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !user) {
@@ -72,7 +73,7 @@ export default function ProfilePage() {
   }
 
   const handlePostDeleted = (postId: string) => {
-    setPosts(posts.filter(p => p.id !== postId))
+    setPosts(prev => prev.filter(post => post.id !== postId))
     toast({
       title: "Post deleted",
       description: "Your post has been deleted successfully.",
@@ -80,11 +81,43 @@ export default function ProfilePage() {
   }
 
   const handleReelDeleted = (reelId: string) => {
-    setReels(reels.filter(r => r.id !== reelId))
+    setReels(prev => prev.filter(reel => reel.id !== reelId))
     toast({
       title: "Reel deleted",
       description: "Your reel has been deleted successfully.",
     })
+  }
+
+  const handleLikeUpdate = (itemId: string, isLiked: boolean, likesCount: number) => {
+    console.log('[Profile] Like update received:', { itemId, isLiked, likesCount })
+
+    // Update posts if the item is a post
+    setPosts(prev => prev.map(post =>
+      post.id === itemId
+        ? { ...post, is_liked: isLiked, liked: isLiked, likes: likesCount, likes_count: likesCount }
+        : post
+    ))
+
+    // Update reels if the item is a reel
+    setReels(prev => prev.map(reel =>
+      reel.id === itemId
+        ? { ...reel, is_liked: isLiked, liked: isLiked, likes: likesCount, likes_count: likesCount }
+        : reel
+    ))
+
+    // Update saved items
+    setSavedItems(prev => prev.map(item =>
+      item.id === itemId
+        ? { ...item, is_liked: isLiked, liked: isLiked, likes: likesCount, likes_count: likesCount }
+        : item
+    ))
+
+    // Update tagged items
+    setTaggedItems(prev => prev.map(item =>
+      item.id === itemId
+        ? { ...item, is_liked: isLiked, liked: isLiked, likes: likesCount, likes_count: likesCount }
+        : item
+    ))
   }
 
   // Load user posts and reels
@@ -100,7 +133,9 @@ export default function ProfilePage() {
         if (postsResponse.ok) {
           const postsData = await postsResponse.json()
           const fetchedPosts = postsData.posts || postsData.data || []
-          console.log('Fetched posts:', fetchedPosts)
+          console.log('[Profile] Fetched posts:', fetchedPosts)
+          console.log('[Profile] First post liked status:', fetchedPosts[0]?.liked, fetchedPosts[0]?.is_liked)
+          console.log('[Profile] First post likes count:', fetchedPosts[0]?.likes, fetchedPosts[0]?.likes_count)
           setPosts(fetchedPosts)
         } else {
           console.error('Failed to fetch posts:', postsResponse.status)
@@ -138,212 +173,6 @@ export default function ProfilePage() {
     }
 
     fetchUserContent()
-
-    // TEMPORARY: Add test posts if no API data
-    if (user) {
-      const testPosts = [
-        {
-          id: 'test-1',
-          user_id: user.id,
-          user: {
-            id: user.id,
-            username: user.username,
-            full_name: user.name || user.username,
-            avatar: user.avatar,
-            avatar_url: user.avatar,
-            is_verified: user.verified || false
-          },
-          caption: 'Test post 1 - Click me to open!',
-          content: 'Test post 1 - Click me to open!',
-          image: 'https://picsum.photos/400/400?random=1',
-          media_urls: ['https://picsum.photos/400/400?random=1'],
-          likes: 10,
-          likes_count: 10,
-          comments: 5,
-          comments_count: 5,
-          shares_count: 2,
-          timestamp: 'Just now',
-          created_at: new Date().toISOString(),
-          is_liked: false,
-          is_saved: false
-        },
-        {
-          id: 'test-2',
-          user_id: user.id,
-          user: {
-            id: user.id,
-            username: user.username,
-            full_name: user.name || user.username,
-            avatar: user.avatar,
-            avatar_url: user.avatar,
-            is_verified: user.verified || false
-          },
-          caption: 'Test post 2 - Click me too!',
-          content: 'Test post 2 - Click me too!',
-          image: 'https://picsum.photos/400/400?random=2',
-          media_urls: ['https://picsum.photos/400/400?random=2'],
-          likes: 20,
-          likes_count: 20,
-          comments: 8,
-          comments_count: 8,
-          shares_count: 3,
-          timestamp: '1 hour ago',
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-          is_liked: false,
-          is_saved: false
-        },
-        {
-          id: 'test-3',
-          user_id: user.id,
-          user: {
-            id: user.id,
-            username: user.username,
-            full_name: user.name || user.username,
-            avatar: user.avatar,
-            avatar_url: user.avatar,
-            is_verified: user.verified || false
-          },
-          caption: 'Test post 3 - Modal should open!',
-          content: 'Test post 3 - Modal should open!',
-          image: 'https://picsum.photos/400/400?random=3',
-          media_urls: ['https://picsum.photos/400/400?random=3'],
-          likes: 15,
-          likes_count: 15,
-          comments: 3,
-          comments_count: 3,
-          shares_count: 1,
-          timestamp: '2 hours ago',
-          created_at: new Date(Date.now() - 7200000).toISOString(),
-          is_liked: false,
-          is_saved: false
-        }
-      ]
-      setPosts(testPosts)
-      console.log('Test posts loaded:', testPosts.length)
-      
-      // Add test reels if no API data
-      const testReels = [
-        {
-          id: 'reel-1',
-          user: {
-            id: user.id,
-            username: user.username,
-            avatar: user.avatar,
-            verified: user.verified || false
-          },
-          video: 'https://example.com/reel1.mp4',
-          video_url: 'https://example.com/reel1.mp4',
-          thumbnail_url: 'https://picsum.photos/400/600?random=1',
-          caption: 'My first reel',
-          likes: 45,
-          comments: 12,
-          shares: 5,
-          isOwner: true
-        },
-        {
-          id: 'reel-2',
-          user: {
-            id: user.id,
-            username: user.username,
-            avatar: user.avatar,
-            verified: user.verified || false
-          },
-          video: 'https://example.com/reel2.mp4',
-          video_url: 'https://example.com/reel2.mp4',
-          thumbnail_url: 'https://picsum.photos/400/600?random=2',
-          caption: 'Check out this cool effect',
-          likes: 78,
-          comments: 23,
-          shares: 15,
-          isOwner: true
-        },
-        {
-          id: 'reel-3',
-          user: {
-            id: user.id,
-            username: user.username,
-            avatar: user.avatar,
-            verified: user.verified || false
-          },
-          video: 'https://example.com/reel3.mp4',
-          video_url: 'https://example.com/reel3.mp4',
-          thumbnail_url: 'https://picsum.photos/400/600?random=3',
-          caption: 'Having fun with friends',
-          likes: 120,
-          comments: 45,
-          shares: 30,
-          isOwner: true
-        }
-      ]
-      setReels(testReels)
-      console.log('Test reels loaded:', testReels.length)
-      
-      // Add test saved items
-      const testSavedItems = [
-        {
-          id: 'saved-1',
-          user: {
-            id: 'other-user-1',
-            username: 'friend1',
-            avatar: 'https://picsum.photos/100/100?random=10',
-            verified: true
-          },
-          content: 'Saved post from friend',
-          image: 'https://picsum.photos/400/400?random=10',
-          media_urls: ['https://picsum.photos/400/400?random=10'],
-          likes: 230,
-          comments: 45,
-          shares: 12,
-          timestamp: '3 days ago',
-          liked: true,
-          bookmarked: true
-        },
-        {
-          id: 'saved-2',
-          user: {
-            id: 'other-user-2',
-            username: 'friend2',
-            avatar: 'https://picsum.photos/100/100?random=11',
-            verified: false
-          },
-          content: 'Another saved post',
-          image: 'https://picsum.photos/400/400?random=11',
-          media_urls: ['https://picsum.photos/400/400?random=11'],
-          likes: 120,
-          comments: 18,
-          shares: 5,
-          timestamp: '1 week ago',
-          liked: true,
-          bookmarked: true
-        }
-      ]
-      setSavedItems(testSavedItems)
-      console.log('Test saved items loaded:', testSavedItems.length)
-      
-      // Add test tagged items
-      const testTaggedItems = [
-        {
-          id: 'tagged-1',
-          user: {
-            id: 'other-user-3',
-            username: 'friend3',
-            avatar: 'https://picsum.photos/100/100?random=12',
-            verified: false
-          },
-          content: `Post where ${user.username} was tagged`,
-          image: 'https://picsum.photos/400/400?random=12',
-          media_urls: ['https://picsum.photos/400/400?random=12'],
-          likes: 85,
-          comments: 12,
-          shares: 3,
-          timestamp: '2 days ago',
-          liked: false,
-          bookmarked: false
-        }
-      ]
-      setTaggedItems(testTaggedItems)
-      console.log('Test tagged items loaded:', testTaggedItems.length)
-    }
   }, [user])
 
   return (
@@ -395,9 +224,9 @@ export default function ProfilePage() {
               Edit profile
             </Button>
           </Link>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="flex-1"
             onClick={() => {
               navigator.clipboard.writeText(window.location.origin + '/profile/' + user.username)
@@ -413,9 +242,9 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Tabs */}
-      <Tabs 
-        defaultValue="posts" 
-        className="w-full" 
+      <Tabs
+        defaultValue="posts"
+        className="w-full"
         orientation="horizontal"
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as "posts" | "reels" | "saved" | "tagged")}
@@ -440,40 +269,44 @@ export default function ProfilePage() {
         </TabsList>
 
         <TabsContent value="posts" className="mt-6">
-          <ContentGrid 
+          <ContentGrid
             key="posts-grid"
             type="posts"
-            items={posts} 
+            items={posts}
             currentUserId={user?.id}
-            onItemDeleted={handlePostDeleted} 
+            onItemDeleted={handlePostDeleted}
+            onLikeUpdate={handleLikeUpdate}
           />
         </TabsContent>
 
         <TabsContent value="reels" className="mt-6">
-          <ContentGrid 
+          <ContentGrid
             key="reels-grid"
             type="reels"
-            items={reels} 
+            items={reels}
             currentUserId={user?.id}
-            onItemDeleted={handleReelDeleted} 
+            onItemDeleted={handleReelDeleted}
+            onLikeUpdate={handleLikeUpdate}
           />
         </TabsContent>
 
         <TabsContent value="saved" className="mt-6">
-          <ContentGrid 
+          <ContentGrid
             key="saved-grid"
             type="saved"
-            items={savedItems} 
+            items={savedItems}
             currentUserId={user?.id}
+            onLikeUpdate={handleLikeUpdate}
           />
         </TabsContent>
 
         <TabsContent value="tagged" className="mt-6">
-          <ContentGrid 
+          <ContentGrid
             key="tagged-grid"
             type="tagged"
-            items={taggedItems} 
+            items={taggedItems}
             currentUserId={user?.id}
+            onLikeUpdate={handleLikeUpdate}
           />
         </TabsContent>
       </Tabs>

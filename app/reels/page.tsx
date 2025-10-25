@@ -78,18 +78,18 @@ const fetchReels = async () => {
       .split('; ')
       .find(row => row.startsWith('token=') || row.startsWith('client-token='))
       ?.split('=')[1]
-    
+
     const headers: HeadersInit = {}
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
-    
+
     const response = await fetch('/api/reels', { headers })
     if (!response.ok) {
       throw new Error('Failed to fetch reels')
     }
     const data = await response.json()
-    
+
     // Get current user ID from token for isOwner check
     let currentUserId = null
     if (token) {
@@ -100,7 +100,7 @@ const fetchReels = async () => {
         // Token parsing failed, continue without user ID
       }
     }
-    
+
     // Transform API data to match ReelPlayer component format
     const transformedReels = (data.reels || []).map((reel: any) => ({
       id: reel.id,
@@ -120,7 +120,7 @@ const fetchReels = async () => {
       bookmarked: false,
       isOwner: currentUserId === reel.user.id,
     }))
-    
+
     return transformedReels
   } catch (error) {
     console.error('Error fetching reels:', error)
@@ -139,13 +139,13 @@ export default function ReelsPage() {
   const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  
+
   // Load initial reels
   useEffect(() => {
     const loadReels = async () => {
       try {
         setLoading(true)
-        const fetchedReels = await fetchReels(1, 10)
+        const fetchedReels = await fetchReels()
         setReels(fetchedReels)
         setHasMore(fetchedReels.length >= 10)
         setLoading(false)
@@ -160,27 +160,27 @@ export default function ReelsPage() {
         setLoading(false)
       }
     }
-    
+
     loadReels()
   }, [toast])
-  
+
   // Load more reels when reaching near the end
   useEffect(() => {
     const loadMoreReels = async () => {
       if (loadingMore || !hasMore || reels.length === 0) return
-      
+
       // Load more when user is 2 reels away from the end
       if (currentIndex >= reels.length - 2) {
         setLoadingMore(true)
         try {
           const nextPage = page + 1
-          const moreReels = await fetchReels(nextPage, 10)
-          
+          const moreReels = await fetchReels()
+
           if (moreReels.length > 0) {
             // Filter out duplicates by ID
-            const existingIds = new Set(reels.map(r => r.id))
-            const newReels = moreReels.filter(r => !existingIds.has(r.id))
-            
+            const existingIds = new Set(reels.map((r: any) => r.id))
+            const newReels = moreReels.filter((r: any) => !existingIds.has(r.id))
+
             if (newReels.length > 0) {
               setReels(prev => [...prev, ...newReels])
               setPage(nextPage)
@@ -198,26 +198,26 @@ export default function ReelsPage() {
         }
       }
     }
-    
+
     loadMoreReels()
   }, [currentIndex, reels.length, loadingMore, hasMore, page, reels])
 
   useEffect(() => {
     let scrollTimeout: NodeJS.Timeout
-    
+
     const handleScroll = () => {
       // Clear previous timeout
       clearTimeout(scrollTimeout)
-      
+
       // Wait for scroll to finish before updating index
       scrollTimeout = setTimeout(() => {
         if (containerRef.current) {
           const scrollTop = containerRef.current.scrollTop
           const itemHeight = containerRef.current.clientHeight
           const newIndex = Math.round(scrollTop / itemHeight)
-          
+
           console.log('Scroll detected - scrollTop:', scrollTop, 'itemHeight:', itemHeight, 'newIndex:', newIndex, 'currentIndex:', currentIndex)
-          
+
           // Only update if index actually changed
           if (newIndex !== currentIndex && newIndex >= 0 && newIndex < reels.length) {
             console.log('Updating current index to:', newIndex)
@@ -241,27 +241,27 @@ export default function ReelsPage() {
     // Find the current reel
     const currentReel = reels.find((r) => r.id === reelId)
     if (!currentReel) return
-    
+
     // Optimistic UI update
     setReels((prev) =>
       prev.map((reel) =>
         reel.id === reelId
           ? {
-              ...reel,
-              liked: !reel.liked,
-              likes: reel.liked ? reel.likes - 1 : reel.likes + 1,
-            }
+            ...reel,
+            liked: !reel.liked,
+            likes: reel.liked ? reel.likes - 1 : reel.likes + 1,
+          }
           : reel,
       ),
     )
-    
+
     try {
       // Make API call
       const token = document.cookie
         .split('; ')
         .find(row => row.startsWith('token='))
         ?.split('=')[1]
-      
+
       const response = await fetch(`/api/reels/${reelId}/like`, {
         method: 'POST',
         headers: {
@@ -269,11 +269,11 @@ export default function ReelsPage() {
           'Authorization': token ? `Bearer ${token}` : ''
         }
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to update like status')
       }
-      
+
       toast({
         title: currentReel.liked ? "Removed like" : "Liked!",
         description: "Your preference has been saved",
@@ -284,14 +284,14 @@ export default function ReelsPage() {
         prev.map((reel) =>
           reel.id === reelId
             ? {
-                ...reel,
-                liked: currentReel.liked,
-                likes: currentReel.likes,
-              }
+              ...reel,
+              liked: currentReel.liked,
+              likes: currentReel.likes,
+            }
             : reel,
         ),
       )
-      
+
       toast({
         title: "Error",
         description: "Failed to update like status. Please try again.",
@@ -304,19 +304,19 @@ export default function ReelsPage() {
     // Find the current reel
     const currentReel = reels.find((r) => r.id === reelId)
     if (!currentReel) return
-    
+
     // Optimistic UI update
     setReels((prev) =>
       prev.map((reel) => (reel.id === reelId ? { ...reel, bookmarked: !reel.bookmarked } : reel)),
     )
-    
+
     try {
       // Make API call
       const token = document.cookie
         .split('; ')
         .find(row => row.startsWith('token='))
         ?.split('=')[1]
-      
+
       const response = await fetch(`/api/reels/${reelId}/bookmark`, {
         method: 'POST',
         headers: {
@@ -324,11 +324,11 @@ export default function ReelsPage() {
           'Authorization': token ? `Bearer ${token}` : ''
         }
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to update bookmark status')
       }
-      
+
       toast({
         title: currentReel.bookmarked ? "Removed from saved" : "Saved!",
         description: "Your preference has been saved",
@@ -340,7 +340,7 @@ export default function ReelsPage() {
           reel.id === reelId ? { ...reel, bookmarked: currentReel.bookmarked } : reel
         ),
       )
-      
+
       toast({
         title: "Error",
         description: "Failed to update bookmark status. Please try again.",
@@ -356,14 +356,14 @@ export default function ReelsPage() {
         .split('; ')
         .find(row => row.startsWith('token=') || row.startsWith('client-token='))
         ?.split('=')[1]
-      
+
       // Fetch comments for the reel
       const response = await fetch(`/api/reels/${reelId}/comment`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         toast({
@@ -391,7 +391,7 @@ export default function ReelsPage() {
         .split('; ')
         .find(row => row.startsWith('token='))
         ?.split('=')[1]
-      
+
       const response = await fetch(`/api/reels/${reelId}/share`, {
         method: 'POST',
         headers: {
@@ -403,11 +403,11 @@ export default function ReelsPage() {
           message: 'Check out this reel!'
         })
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to share reel')
       }
-      
+
       toast({
         title: "Shared!",
         description: "Reel shared successfully",
@@ -420,6 +420,21 @@ export default function ReelsPage() {
         variant: "destructive"
       })
     }
+  }
+
+  const handleDelete = (reelId: string) => {
+    // Remove the deleted reel from the list
+    setReels(prevReels => prevReels.filter(r => r.id !== reelId))
+
+    // Adjust current index if needed
+    if (currentIndex >= reels.length - 1 && currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1)
+    }
+
+    toast({
+      title: "Reel deleted",
+      description: "Your reel has been removed successfully",
+    })
   }
 
   if (loading) {
@@ -462,15 +477,15 @@ export default function ReelsPage() {
       <div
         ref={containerRef}
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-        style={{ 
-          scrollbarWidth: "none", 
+        style={{
+          scrollbarWidth: "none",
           msOverflowStyle: "none",
           WebkitOverflowScrolling: "touch"
         }}
       >
         {reels.map((reel, index) => (
-          <div 
-            key={reel.id} 
+          <div
+            key={reel.id}
             className="h-screen w-full snap-start snap-always"
             style={{ scrollSnapAlign: "start" }}
           >
@@ -481,6 +496,7 @@ export default function ReelsPage() {
               onComment={handleComment}
               onShare={handleShare}
               onBookmark={handleBookmark}
+              onDelete={handleDelete}
               currentUserId={user?.id}
             />
           </div>

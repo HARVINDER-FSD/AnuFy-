@@ -18,21 +18,22 @@ export default function CreatePostPage() {
   const [content, setContent] = useState("")
   const [location, setLocation] = useState("")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login')
     }
   }, [user, loading, router])
-  
+
   // Show loading state while checking authentication
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
-  
+
   // Only render content if authenticated
   if (!user) {
     return null
@@ -47,12 +48,12 @@ export default function CreatePostPage() {
         setSelectedImage(e.target?.result as string)
       }
       reader.readAsDataURL(file)
-      
+
       // Upload to Cloudinary
       try {
         const formData = new FormData()
         formData.append('file', file)
-        
+
         const token = Cookies.get('client-token') || Cookies.get('token') || localStorage.getItem('token')
         const response = await fetch('/api/upload', {
           method: 'POST',
@@ -61,13 +62,15 @@ export default function CreatePostPage() {
           },
           body: formData
         })
-        
+
         if (response.ok) {
           const result = await response.json()
-          setSelectedImage(result.url) // Update with Cloudinary URL
+          setUploadedImageUrl(result.url) // Store Cloudinary URL separately
+          console.log('Image uploaded successfully:', result.url)
         } else {
           const errorData = await response.json()
           console.error('Upload failed:', errorData.message)
+          // Keep the preview even if upload fails
         }
       } catch (error) {
         console.error('Upload error:', error)
@@ -77,6 +80,7 @@ export default function CreatePostPage() {
 
   const removeImage = () => {
     setSelectedImage(null)
+    setUploadedImageUrl(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -93,7 +97,7 @@ export default function CreatePostPage() {
     try {
       // Get auth token from cookies
       const token = Cookies.get('client-token') || Cookies.get('token') || localStorage.getItem('token')
-      
+
       if (!token) {
         alert("You must be logged in to create a post")
         router.push('/login')
@@ -109,7 +113,7 @@ export default function CreatePostPage() {
         body: JSON.stringify({
           content,
           location: location || null,
-          media_urls: selectedImage ? [selectedImage] : [],
+          media_urls: uploadedImageUrl ? [uploadedImageUrl] : (selectedImage ? [selectedImage] : []),
           media_type: selectedImage ? "image" : "text",
         }),
       })
@@ -140,8 +144,8 @@ export default function CreatePostPage() {
           </Button>
           <h1 className="text-2xl font-bold">Create Post</h1>
         </div>
-        <Button 
-          onClick={handleSubmit} 
+        <Button
+          onClick={handleSubmit}
           disabled={isSubmitting || (!content.trim() && !selectedImage)}
         >
           {isSubmitting ? "Posting..." : "Post"}
@@ -180,17 +184,15 @@ export default function CreatePostPage() {
               <Button
                 variant="destructive"
                 size="icon"
-                className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                className="absolute top-2 right-2 h-8 w-8 rounded-full z-10"
                 onClick={removeImage}
               >
                 <X className="h-4 w-4" />
               </Button>
-              <Image
+              <img
                 src={selectedImage}
                 alt="Selected image"
-                width={500}
-                height={300}
-                className="w-full h-auto object-cover rounded-md"
+                className="w-full h-auto object-cover rounded-md max-h-96"
               />
             </div>
           )}

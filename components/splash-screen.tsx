@@ -14,11 +14,11 @@ export function SplashScreen({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (showSplash) {
-      // Hide splash after 2.5 seconds
+      // Hide splash after 1 second for faster loading
       const timer = setTimeout(() => {
         setShowSplash(false)
         sessionStorage.setItem('splashShown', 'true')
-      }, 2500)
+      }, 1000)
 
       return () => clearTimeout(timer)
     }

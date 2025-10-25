@@ -9,17 +9,61 @@ interface ContentGridProps {
   items: any[];
   currentUserId?: string;
   onItemDeleted?: (itemId: string) => void;
+  onLikeUpdate?: (itemId: string, isLiked: boolean, likesCount: number) => void;
 }
 
-export function ContentGrid({ type, items, currentUserId, onItemDeleted }: ContentGridProps) {
+export function ContentGrid({ type, items, currentUserId, onItemDeleted, onLikeUpdate }: ContentGridProps) {
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showModal, setShowModal] = useState(false)
+  const [localItems, setLocalItems] = useState(items)
   
+  // Update local items when props change
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
+
   // Reset selected item and modal state when type changes
   useEffect(() => {
     setSelectedItem(null);
     setShowModal(false);
   }, [type]);
+
+  // Handle like update from modal
+  const handleLikeUpdate = (itemId: string, isLiked: boolean, likesCount: number) => {
+    console.log('[ContentGrid] Like update received:', { itemId, isLiked, likesCount })
+    
+    // Update local items
+    setLocalItems(prevItems => {
+      const updated = prevItems.map(item => 
+        item.id === itemId 
+          ? { ...item, is_liked: isLiked, liked: isLiked, likes: likesCount, likes_count: likesCount }
+          : item
+      )
+      console.log('[ContentGrid] Updated local items:', updated.find(i => i.id === itemId))
+      return updated
+    });
+    
+    // Update selected item if it's the one being liked
+    if (selectedItem?.id === itemId) {
+      setSelectedItem((prev: any) => {
+        const updated = {
+          ...prev,
+          is_liked: isLiked,
+          liked: isLiked,
+          likes: likesCount,
+          likes_count: likesCount
+        }
+        console.log('[ContentGrid] Updated selected item:', updated)
+        return updated
+      });
+    }
+    
+    // Notify parent component
+    if (onLikeUpdate) {
+      console.log('[ContentGrid] Notifying parent component')
+      onLikeUpdate(itemId, isLiked, likesCount);
+    }
+  };
 
   // Empty state components
   const EmptyState = () => {
@@ -62,7 +106,7 @@ export function ContentGrid({ type, items, currentUserId, onItemDeleted }: Conte
   };
 
   // If no items, show empty state
-  if (!items || items.length === 0) {
+  if (!localItems || localItems.length === 0) {
     return (
       <div className="text-center py-12">
         <EmptyState />
@@ -133,7 +177,7 @@ export function ContentGrid({ type, items, currentUserId, onItemDeleted }: Conte
 
   // Render grid items based on type
   const renderGridItems = () => {
-    return items.map((item: any) => (
+    return localItems.map((item: any) => (
       <div
         key={item.id}
         onClick={() => handleItemClick(item)}
@@ -169,7 +213,7 @@ export function ContentGrid({ type, items, currentUserId, onItemDeleted }: Conte
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <div className="flex items-center gap-6 text-white">
                 <div className="flex items-center gap-2">
-                  <Heart className="w-6 h-6" fill="white" />
+                  <Heart className={`w-6 h-6 ${item.is_liked || item.liked ? 'fill-red-500 text-red-500' : 'fill-white'}`} />
                   <span className="font-bold text-lg">{item.likes_count || item.likes || 0}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -206,7 +250,7 @@ export function ContentGrid({ type, items, currentUserId, onItemDeleted }: Conte
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <div className="flex items-center gap-6 text-white">
                 <div className="flex items-center gap-2">
-                  <Heart className="w-6 h-6" fill="white" />
+                  <Heart className={`w-6 h-6 ${item.is_liked || item.liked ? 'fill-red-500 text-red-500' : 'fill-white'}`} />
                   <span className="font-bold text-lg">{item.likes_count || item.likes || 0}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -322,7 +366,7 @@ export function ContentGrid({ type, items, currentUserId, onItemDeleted }: Conte
 
   return (
     <div className="w-full">
-      {items.length === 0 ? (
+      {localItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed rounded-lg">
           <EmptyState />
         </div>
@@ -341,6 +385,7 @@ export function ContentGrid({ type, items, currentUserId, onItemDeleted }: Conte
           isOpen={showModal}
           onClose={handleCloseModal}
           onDelete={onItemDeleted}
+          onLikeUpdate={handleLikeUpdate}
         />
       )}
     </div>

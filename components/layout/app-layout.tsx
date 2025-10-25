@@ -10,7 +10,7 @@ import { MobileNav } from "./mobile-nav";
 
 // Pages where auth is required and where nav should be hidden
 const AUTH_PAGES = ["/login", "/register"];
-const HIDE_NAV_PAGES = ["/login", "/register", "/stories/create", "/stories"];
+const HIDE_NAV_PAGES = ["/login", "/register", "/stories/create", "/stories", "/reels"];
 const HIDE_HEADER_PAGES = ["/login", "/register", "/reels", "/stories/create", "/stories", "/profile"];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -32,17 +32,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Show loading only after mount to prevent hydration mismatch
-  if (!mounted || loading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="h-14" /> {/* Header placeholder */}
-        <main className="flex-1 pb-20">
-          {children}
-        </main>
-        <div className="h-16" /> {/* Nav placeholder */}
-      </div>
-    );
+  // Instant render - no loading state
+  if (!mounted) {
+    return null; // Quick hydration
   }
 
   // Main authenticated layout
