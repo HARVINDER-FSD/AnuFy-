@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { StoryViewer } from "@/components/stories/story-viewer"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -24,7 +24,7 @@ interface Story {
   music?: string | null
 }
 
-export default function StoriesPage() {
+function StoriesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
@@ -172,5 +172,17 @@ export default function StoriesPage() {
         currentUserId={user?.id}
       />
     </div>
+  )
+}
+
+export default function StoriesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen text-lg font-medium">
+        Loading stories...
+      </div>
+    }>
+      <StoriesContent />
+    </Suspense>
   )
 }
