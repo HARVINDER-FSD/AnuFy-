@@ -189,7 +189,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Always clear cookies and state regardless of API response
       removeAuthToken();
       setUser(null);
-      router.push("/login");
+      
+      // Force hard redirect to login page
+      window.location.href = "/login";
     }
   };
 

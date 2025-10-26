@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion"
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { PostCard } from "@/components/posts/post-card"
 import { StoriesBar } from "@/components/stories/stories-bar"
 import { usePosts } from "@/hooks/use-posts"
@@ -10,14 +11,19 @@ import { useAuth } from "@/components/auth/auth-provider"
 
 export default function FeedPage() {
   const { posts, loading, error, likePost, bookmarkPost, sharePost, commentOnPost, deletePost } = usePosts()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
 
-  // Check authentication on mount
+  // Redirect to login if not authenticated
   useEffect(() => {
-    if (!user) {
-      console.log("User not authenticated or data not loaded yet")
+    if (!authLoading && !user) {
+      window.location.href = '/login'
     }
-  }, [user])
+  }, [user, authLoading])
+
+  // Show nothing while checking auth
+  if (authLoading || !user) {
+    return null
+  }
 
   return (
     <div className="max-w-2xl mx-auto py-2 sm:py-4">
