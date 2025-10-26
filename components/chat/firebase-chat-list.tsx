@@ -111,16 +111,8 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
     !conversations.some(conv => conv.participants.includes(searchUser._id || searchUser.id))
   )
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading conversations...</p>
-        </div>
-      </div>
-    )
-  }
+  // INSTANT LOADING: Show skeleton immediately, no spinner
+  const showSkeleton = isLoading && conversations.length === 0
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -148,6 +140,22 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
 
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
+        {/* INSTANT LOADING: Show skeleton conversations */}
+        {showSkeleton && (
+          <>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={`skeleton-${i}`} className="flex items-center gap-3 px-4 py-3 border-b border-border/50 animate-pulse">
+                <div className="w-14 h-14 bg-muted rounded-full flex-shrink-0"></div>
+                <div className="flex-1 min-w-0">
+                  <div className="h-4 bg-muted rounded w-32 mb-2"></div>
+                  <div className="h-3 bg-muted rounded w-48"></div>
+                </div>
+                <div className="h-3 bg-muted rounded w-12"></div>
+              </div>
+            ))}
+          </>
+        )}
+        
         {/* Loading skeleton for user search */}
         {searchingUsers && (
           <div className="px-4 py-3">
@@ -162,7 +170,7 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
         )}
         
         {/* New Users from Search */}
-        {searchQuery && newUsers.length > 0 && (
+        {!showSkeleton && searchQuery && newUsers.length > 0 && (
           <div className="border-b border-border">
             <p className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">New Conversation</p>
             {newUsers.map(searchUser => (
@@ -197,7 +205,7 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
           </div>
         )}
 
-        {filteredConversations.length === 0 && newUsers.length === 0 ? (
+        {!showSkeleton && filteredConversations.length === 0 && newUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-4 text-center">
             <MessageCircle className="w-16 h-16 text-muted-foreground mb-4" />
             <p className="text-lg font-semibold mb-2">No messages yet</p>
@@ -205,7 +213,7 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
               {searchQuery ? 'No users found' : 'Search for someone to start chatting'}
             </p>
           </div>
-        ) : (
+        ) : !showSkeleton ? (
           filteredConversations.map(conversation => {
             const recipient = getRecipient(conversation)
             if (!recipient) return null
@@ -254,7 +262,7 @@ export function FirebaseChatList({ onSelectConversation }: FirebaseChatListProps
               </div>
             )
           })
-        )}
+        ) : null}
       </div>
     </div>
   )
