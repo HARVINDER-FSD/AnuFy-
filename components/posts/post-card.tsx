@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Play, Send, Trash2 } from "lucide-react"
+import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Play, Send, Trash2, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ShareModal } from "@/components/share/share-modal"
+import { ReportModal } from "@/components/moderation/report-modal"
 
 // Global lock to prevent multiple simultaneous like requests
 const globalLikeLocks = new Map<string, boolean>()
@@ -63,6 +64,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showMenu, setShowMenu] = useState(false) // Simple menu state
   const [showShareModal, setShowShareModal] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
   const [isLikeDisabled, setIsLikeDisabled] = useState(false)
   const isLikingRef = useRef(false)
   const { toast } = useToast()
@@ -350,15 +352,13 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
                   )}
                   {!isOwner && (
                     <button
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                       onClick={() => {
                         setShowMenu(false)
-                        toast({
-                          title: "Report",
-                          description: "Report functionality coming soon",
-                        })
+                        setShowReportModal(true)
                       }}
                     >
+                      <Flag className="h-4 w-4" />
                       Report Post
                     </button>
                   )}
@@ -519,6 +519,15 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
           username: post.user.username,
           avatar: post.user.avatar
         }}
+      />
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        contentType="post"
+        contentId={post.id}
+        reportedUserId={post.user.id}
       />
     </Card>
   )

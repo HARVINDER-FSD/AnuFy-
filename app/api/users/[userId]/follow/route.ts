@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient, ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
+import { notifyFollow } from '@/lib/notification-service';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
@@ -161,12 +162,7 @@ export async function POST(
         );
         
         // Create notification for the followed user
-        await db.collection('notifications').insertOne({
-          user_id: new ObjectId(targetUserId),
-          actor_id: new ObjectId(currentUserId),
-          type: 'follow',
-          content: 'started following you',
-          is_read: false,
+        await notifyFollow(targetUserId, currentUserId).catch(() => {});
           created_at: new Date()
         });
         

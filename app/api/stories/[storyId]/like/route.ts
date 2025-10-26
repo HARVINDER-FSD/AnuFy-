@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient, ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
+import { notifyStoryLike } from '@/lib/notification-service';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
@@ -63,6 +64,13 @@ export async function POST(
         user_id: new ObjectId(userId),
         created_at: new Date()
       });
+      
+      // Get story owner to send notification
+      const story = await db.collection('stories').findOne({ _id: new ObjectId(storyId) });
+      if (story && story.user_id && story.user_id.toString() !== userId) {
+        await notifyStoryLike(story.user_id.toString(), userId, storyId).catch(() => {});
+      }
+      
       await client.close();
       
       return NextResponse.json({

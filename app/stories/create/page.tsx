@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft, Maximize2, Type, Smile, Sparkles, MoreHorizontal, X, Search, Music,
-  Sticker, Filter, RotateCcw, ZoomIn, Move
+  Sticker, Filter, RotateCcw, ZoomIn, Move, Scissors, Play
 } from "lucide-react"
 import {
   CountdownSticker,
@@ -17,6 +17,7 @@ import {
   LinkSticker
 } from "@/components/stories/AdvancedStickers"
 import { extractDominantColor } from "@/lib/color-extractor"
+import { InstagramReelsMusicFlow } from "@/components/stories/instagram-reels-music-flow"
 
 export default function CreateInstagramStoryPage() {
   const router = useRouter()
@@ -84,6 +85,8 @@ export default function CreateInstagramStoryPage() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [initialPinchDistance, setInitialPinchDistance] = useState(0)
   const [initialFontSize, setInitialFontSize] = useState(0)
+  const [initialRotation, setInitialRotation] = useState(0)
+  const [initialAngle, setInitialAngle] = useState(0)
 
   // Delete zone
   const [showDeleteZone, setShowDeleteZone] = useState(false)
@@ -128,6 +131,13 @@ export default function CreateInstagramStoryPage() {
   const [selectedMusic, setSelectedMusic] = useState<any>(null)
   const [isPlayingPreview, setIsPlayingPreview] = useState(false)
   const [isPlayingOnStory, setIsPlayingOnStory] = useState(false)
+
+  // Music trimming
+  const [showMusicFlow, setShowMusicFlow] = useState(false)
+  const [audioTrimStart, setAudioTrimStart] = useState(0)
+  const [audioTrimEnd, setAudioTrimEnd] = useState(30)
+  const [videoTrimStart, setVideoTrimStart] = useState(0)
+  const [videoTrimEnd, setVideoTrimEnd] = useState(15)
 
   // Interactive Sticker States
   const [showLocationPicker, setShowLocationPicker] = useState(false)
@@ -378,17 +388,24 @@ export default function CreateInstagramStoryPage() {
       setDragStart({ x: touch.clientX, y: touch.clientY })
       if ('vibrate' in navigator) navigator.vibrate(10)
     } else if (e.touches.length === 2) {
-      // Two fingers - resize
+      // Two fingers - resize and rotate
       const touch1 = e.touches[0]
       const touch2 = e.touches[1]
       const distance = Math.hypot(
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       )
+      const angle = Math.atan2(
+        touch2.clientY - touch1.clientY,
+        touch2.clientX - touch1.clientX
+      ) * (180 / Math.PI)
+
       const text = texts.find(t => t.id === textId)
       if (text) {
         setInitialPinchDistance(distance)
         setInitialFontSize(text.fontSize)
+        setInitialRotation(text.rotation || 0)
+        setInitialAngle(angle)
         if ('vibrate' in navigator) navigator.vibrate(15)
       }
     }
@@ -434,19 +451,25 @@ export default function CreateInstagramStoryPage() {
         if (isInDeleteZone && 'vibrate' in navigator) navigator.vibrate(5)
       }
     } else if (e.touches.length === 2) {
-      // Pinch to resize
+      // Pinch to resize and rotate
       const touch1 = e.touches[0]
       const touch2 = e.touches[1]
       const distance = Math.hypot(
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       )
+      const angle = Math.atan2(
+        touch2.clientY - touch1.clientY,
+        touch2.clientX - touch1.clientX
+      ) * (180 / Math.PI)
 
       const scale = distance / initialPinchDistance
       const newSize = Math.max(16, Math.min(72, initialFontSize * scale))
+      const rotationDelta = angle - initialAngle
+      const newRotation = initialRotation + rotationDelta
 
       setTexts(texts.map(t =>
-        t.id === selectedTextId ? { ...t, fontSize: newSize } : t
+        t.id === selectedTextId ? { ...t, fontSize: newSize, rotation: newRotation } : t
       ))
     }
   }
@@ -1098,7 +1121,17 @@ export default function CreateInstagramStoryPage() {
           title: selectedMusic.title,
           artist: selectedMusic.artist,
           artwork: selectedMusic.artwork,
-          previewUrl: selectedMusic.previewUrl
+          previewUrl: selectedMusic.previewUrl,
+          // Add trim metadata
+          audioTrimStart: audioTrimStart,
+          audioTrimEnd: audioTrimEnd,
+          duration: audioTrimEnd - audioTrimStart
+        } : null,
+        // Add video trim metadata if video
+        videoTrim: mediaType === 'video' ? {
+          start: videoTrimStart,
+          end: videoTrimEnd,
+          duration: videoTrimEnd - videoTrimStart
         } : null,
         share_type: shareType // 'your-story' or 'friends'
       }
@@ -1368,8 +1401,12 @@ export default function CreateInstagramStoryPage() {
 
               {/* Music */}
               <button
-                onClick={() => setActivePanel(activePanel === 'music' ? 'none' : 'music')}
-                className={`w-10 h-10 flex items-center justify-center text-white active:scale-90 transition-transform ${activePanel === 'music' ? 'bg-white/20 rounded-full' : ''
+                onClick={() => {
+                  setShowMusicFlow(true)
+                  setActivePanel('none')
+                  if ('vibrate' in navigator) navigator.vibrate(10)
+                }}
+                className={`w-10 h-10 flex items-center justify-center text-white active:scale-90 transition-transform ${selectedMusic ? 'bg-white/20 rounded-full' : ''
                   }`}
                 title="Music"
               >
@@ -1598,8 +1635,13 @@ export default function CreateInstagramStoryPage() {
                   <>
                     {/* Instagram Style 1: Default - Gradient with dynamic color */}
                     {(!sticker.data.style || sticker.data.style === 'default') && (
-                      <div
-                        className="rounded-2xl p-4 flex items-center gap-3 min-w-[280px] max-w-[340px]"
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowMusicFlow(true)
+                          if ('vibrate' in navigator) navigator.vibrate(10)
+                        }}
+                        className="rounded-2xl p-4 flex items-center gap-3 min-w-[280px] max-w-[340px] active:scale-95 transition-transform"
                         style={{
                           background: `linear-gradient(135deg, ${sticker.data.color || dominantColor}ee, ${sticker.data.color || dominantColor}dd)`
                         }}
@@ -1623,12 +1665,19 @@ export default function CreateInstagramStoryPage() {
                             {sticker.data.artist}
                           </p>
                         </div>
-                      </div>
+                      </button>
                     )}
 
                     {/* Instagram Style 2: Compact - Small pill */}
                     {sticker.data.style === 'compact' && (
-                      <div className="bg-white/95 backdrop-blur-sm rounded-full px-5 py-3 flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowMusicFlow(true)
+                          if ('vibrate' in navigator) navigator.vibrate(10)
+                        }}
+                        className="bg-white/95 backdrop-blur-sm rounded-full px-5 py-3 flex items-center gap-2 active:scale-95 transition-transform"
+                      >
                         <Music className="w-5 h-5 text-purple-500" />
                         <div className="flex flex-col">
                           <span className="text-black font-bold text-sm truncate max-w-[180px]">
@@ -1638,12 +1687,19 @@ export default function CreateInstagramStoryPage() {
                             {sticker.data.artist}
                           </span>
                         </div>
-                      </div>
+                      </button>
                     )}
 
                     {/* Instagram Style 3: Album Art Focus */}
                     {sticker.data.style === 'album' && sticker.data.artwork && (
-                      <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowMusicFlow(true)
+                          if ('vibrate' in navigator) navigator.vibrate(10)
+                        }}
+                        className="relative active:scale-95 transition-transform"
+                      >
                         <img
                           src={sticker.data.artwork}
                           alt="Album"
@@ -1662,13 +1718,18 @@ export default function CreateInstagramStoryPage() {
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     )}
 
                     {/* Instagram Style 4: Wave Animation with dynamic color */}
                     {sticker.data.style === 'wave' && (
-                      <div
-                        className="rounded-2xl p-4 min-w-[260px] max-w-[300px]"
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowMusicFlow(true)
+                          if ('vibrate' in navigator) navigator.vibrate(10)
+                        }}
+                        className="rounded-2xl p-4 min-w-[260px] max-w-[300px] active:scale-95 transition-transform"
                         style={{
                           background: `linear-gradient(90deg, ${sticker.data.color || dominantColor}ee, ${sticker.data.color || dominantColor}dd)`
                         }}
@@ -1699,7 +1760,7 @@ export default function CreateInstagramStoryPage() {
                             />
                           ))}
                         </div>
-                      </div>
+                      </button>
                     )}
                   </>
                 )}
@@ -1935,18 +1996,6 @@ export default function CreateInstagramStoryPage() {
 
                 {/* Text Tools */}
                 <div className="flex items-center justify-around py-4 bg-gray-800 rounded-2xl">
-                  {/* Alignment */}
-                  <button
-                    onClick={() => setTextAlignment(textAlignment === 'left' ? 'center' : textAlignment === 'center' ? 'right' : 'left')}
-                    className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                  >
-                    <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  </button>
-
                   {/* Color Picker - Cycle through colors */}
                   <button
                     onClick={() => {
@@ -2371,20 +2420,32 @@ export default function CreateInstagramStoryPage() {
                 </div>
 
                 {selectedMusic && (
-                  <div className="bg-gray-800 rounded-xl p-3 flex items-center gap-3">
-                    {selectedMusic.artwork && (
-                      <img
-                        src={selectedMusic.artwork}
-                        alt={selectedMusic.title}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-medium text-sm truncate">{selectedMusic.title}</p>
-                      <p className="text-gray-400 text-xs truncate">{selectedMusic.artist}</p>
+                  <>
+                    <div className="bg-gray-800 rounded-xl p-3 flex items-center gap-3">
+                      {selectedMusic.artwork && (
+                        <img
+                          src={selectedMusic.artwork}
+                          alt={selectedMusic.title}
+                          className="w-12 h-12 rounded-lg object-cover"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium text-sm truncate">{selectedMusic.title}</p>
+                        <p className="text-gray-400 text-xs truncate">{selectedMusic.artist}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowMusicFlow(true)
+                          if ('vibrate' in navigator) navigator.vibrate(10)
+                        }}
+                        className="p-2 bg-purple-500/20 rounded-lg active:scale-95 transition-transform"
+                      >
+                        <Scissors className="w-5 h-5 text-purple-400" />
+                      </button>
                     </div>
-                    <Music className="w-5 h-5 text-purple-500" />
-                  </div>
+
+
+                  </>
                 )}
 
                 <div className="relative">
@@ -2930,6 +2991,53 @@ export default function CreateInstagramStoryPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Instagram Reels Music Flow */}
+      {showMusicFlow && (
+        <InstagramReelsMusicFlow
+          storyMedia={selectedMedia || undefined}
+          storyMediaType={mediaType}
+          onSelectMusic={(song, trimStart, trimEnd) => {
+            // Set selected music
+            setSelectedMusic({
+              title: song.title,
+              artist: song.artist,
+              artwork: song.artwork,
+              previewUrl: song.previewUrl,
+              duration: 30
+            })
+
+            // Set trim values
+            setAudioTrimStart(trimStart)
+            setAudioTrimEnd(trimEnd)
+
+            // Add music sticker if enabled
+            if (showMusicSticker) {
+              addSticker('music', {
+                title: song.title,
+                artist: song.artist,
+                artwork: song.artwork,
+                style: musicStickerStyle,
+                color: dominantColor
+              })
+            }
+
+            // Play audio on story
+            if (storyAudioRef.current) {
+              storyAudioRef.current.src = song.previewUrl
+              storyAudioRef.current.currentTime = trimStart
+              storyAudioRef.current.play()
+              setIsPlayingOnStory(true)
+            }
+
+            setShowMusicFlow(false)
+          }}
+          onClose={() => {
+            setShowMusicFlow(false)
+            if ('vibrate' in navigator) navigator.vibrate(10)
+          }}
+        />
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, TrendingUp, Users, Hash, Loader2 } from "lucide-react"
+import { Search, TrendingUp, Users, Hash, Loader2, Play } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -68,16 +68,137 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [activeTab, setActiveTab] = useState("trending")
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set())
+  const [searchHistory, setSearchHistory] = useState<any[]>([])
+  const [showHistory, setShowHistory] = useState(true)
+  const [trendingContent, setTrendingContent] = useState<any>({ posts: [], reels: [], users: [] })
+  const [loadingTrending, setLoadingTrending] = useState(true)
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
+  // Fetch trending content on mount
+  useEffect(() => {
+    fetchTrendingContent()
+    fetchSearchHistory()
+  }, [])
+
+  const fetchTrendingContent = async () => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+        ?.split('=')[1]
+
+      const response = await fetch('/api/explore/trending?category=all&limit=20', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Trending content received:', {
+          posts: data.posts?.length || 0,
+          reels: data.reels?.length || 0,
+          users: data.users?.length || 0
+        })
+        
+        // Log first reel to check thumbnail
+        if (data.reels && data.reels.length > 0) {
+          console.log('First reel data:', {
+            id: data.reels[0]._id,
+            has_thumbnail: !!data.reels[0].thumbnail_url,
+            has_video: !!data.reels[0].video_url,
+            thumbnail_url: data.reels[0].thumbnail_url,
+            video_url: data.reels[0].video_url
+          })
+        }
+        
+        setTrendingContent(data)
+      }
+    } catch (error) {
+      console.error('Error fetching trending:', error)
+    } finally {
+      setLoadingTrending(false)
+    }
+  }
+
+  const fetchSearchHistory = async () => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+        ?.split('=')[1]
+
+      const response = await fetch('/api/search/history?limit=10', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSearchHistory(data.history || [])
+      }
+    } catch (error) {
+      console.error('Error fetching search history:', error)
+    }
+  }
+
+  const saveToHistory = async (query: string) => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+        ?.split('=')[1]
+
+      await fetch('/api/search/history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ query, type: 'general' })
+      })
+
+      fetchSearchHistory()
+    } catch (error) {
+      console.error('Error saving to history:', error)
+    }
+  }
+
+  const clearHistory = async () => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+        ?.split('=')[1]
+
+      await fetch('/api/search/history', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      })
+
+      setSearchHistory([])
+      toast({ title: 'Search history cleared' })
+    } catch (error) {
+      console.error('Error clearing history:', error)
+    }
+  }
 
   const performSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSearchResults({ users: [], posts: [], hashtags: [] })
+      setShowHistory(true)
       return
     }
 
+    setShowHistory(false)
     setIsSearching(true)
+
+    // Save to history
+    saveToHistory(query)
     try {
       const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
       if (response.ok) {
@@ -106,7 +227,7 @@ export default function SearchPage() {
         const trimmed = cookie.trim();
         return trimmed.startsWith('token=') || trimmed.startsWith('client-token=');
       });
-      
+
       if (!tokenCookie) {
         toast({
           title: "Authentication required",
@@ -115,9 +236,9 @@ export default function SearchPage() {
         });
         return;
       }
-      
+
       const token = tokenCookie.split('=')[1];
-      
+
       const response = await fetch(`/api/users/${userId}/follow`, {
         method: "POST",
         headers: {
@@ -162,7 +283,7 @@ export default function SearchPage() {
         const trimmed = cookie.trim();
         return trimmed.startsWith('token=') || trimmed.startsWith('client-token=');
       });
-      
+
       if (!tokenCookie) {
         toast({
           title: "Authentication required",
@@ -171,9 +292,9 @@ export default function SearchPage() {
         });
         return;
       }
-      
+
       const token = tokenCookie.split('=')[1];
-      
+
       // Use POST method (same endpoint toggles follow/unfollow)
       const response = await fetch(`/api/users/${userId}/follow`, {
         method: "POST",
@@ -241,26 +362,154 @@ export default function SearchPage() {
         <TabsContent value="trending" className="space-y-4">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Trending Topics</h2>
+            <h2 className="text-lg font-semibold">Trending Now</h2>
           </div>
 
-          {trendingTopics.map((topic, index) => (
-            <Card
-              key={index}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => setSearchQuery(topic.tag)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-primary">{topic.tag}</h3>
-                    <p className="text-sm text-muted-foreground">{topic.posts}</p>
+          {loadingTrending ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-1">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} className="aspect-square bg-muted animate-pulse rounded" />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Trending Posts Grid */}
+              {trendingContent.posts && trendingContent.posts.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground">Trending Posts</h3>
+                  <div className="grid grid-cols-3 gap-1">
+                    {trendingContent.posts.slice(0, 9).map((post: any) => (
+                      <button
+                        key={post._id}
+                        onClick={() => window.location.href = '/feed'}
+                        className="aspect-square relative group overflow-hidden rounded"
+                      >
+                        <img
+                          src={post.media_urls?.[0] || '/placeholder.svg'}
+                          alt={post.caption || 'Post'}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs">
+                          <span>❤️ {post.likes_count || 0}</span>
+                          <span>💬 {post.comments_count || 0}</span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <Hash className="h-5 w-5 text-muted-foreground" />
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              )}
+
+              {/* Trending Reels Grid */}
+              {trendingContent.reels && trendingContent.reels.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground">Trending Reels</h3>
+                  <div className="grid grid-cols-3 gap-1">
+                    {trendingContent.reels.slice(0, 9).map((reel: any) => {
+                      return (
+                        <button
+                          key={reel._id}
+                          onClick={() => window.location.href = '/reels'}
+                          className="aspect-[9/16] relative group overflow-hidden rounded bg-gradient-to-br from-purple-500 to-pink-500"
+                        >
+                          {reel.thumbnail_url ? (
+                            <img
+                              src={reel.thumbnail_url}
+                              alt={reel.caption || 'Reel'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // If thumbnail fails, hide it and show gradient
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : reel.video_url ? (
+                            <video
+                              src={reel.video_url}
+                              className="w-full h-full object-cover"
+                              muted
+                              playsInline
+                              preload="metadata"
+                              onError={(e) => {
+                                // If video fails, hide it and show gradient
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Play className="h-8 w-8 text-white" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
+                            <Play className="h-3 w-3 text-white fill-white" />
+                          </div>
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs">
+                            <span>❤️ {reel.likes_count || 0}</span>
+                            <span>👁️ {reel.views_count || 0}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* No Content Message */}
+              {(!trendingContent.posts || trendingContent.posts.length === 0) &&
+                (!trendingContent.reels || trendingContent.reels.length === 0) &&
+                (!trendingContent.users || trendingContent.users.length === 0) && (
+                  <div className="text-center py-12">
+                    <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No trending content yet</h3>
+                    <p className="text-muted-foreground">Check back later for trending posts and reels</p>
+                  </div>
+                )}
+
+              {/* Suggested Users */}
+              {trendingContent.users && trendingContent.users.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground">Suggested Users</h3>
+                  <div className="space-y-2">
+                    {trendingContent.users.slice(0, 5).map((user: any) => (
+                      <Card key={user._id}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={user.avatar_url || "/placeholder.svg"} alt={user.username} />
+                                <AvatarFallback>{user.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <span className="font-semibold text-sm">{user.username}</span>
+                                  {user.is_verified && (
+                                    <div className="w-3 h-3 bg-primary rounded-full flex items-center justify-center">
+                                      <span className="text-[8px] text-primary-foreground">✓</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">{user.full_name}</p>
+                                <p className="text-xs text-muted-foreground">{user.followers_count || 0} followers</p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={followingUsers.has(user._id) ? "outline" : "default"}
+                              onClick={() =>
+                                followingUsers.has(user._id) ? handleUnfollowUser(user._id) : handleFollowUser(user._id)
+                              }
+                            >
+                              {followingUsers.has(user._id) ? "Following" : "Follow"}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="people" className="space-y-4">

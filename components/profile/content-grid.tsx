@@ -196,17 +196,23 @@ export function ContentGrid({ type, items, currentUserId, onItemDeleted, onLikeU
                   target.src = "/placeholder-image.jpg";
                 }}
               />
-            ) : (
+            ) : item.video_url || item.video ? (
               <video
                 src={item.video_url || item.video}
                 className="w-full h-full object-cover"
                 muted
+                playsInline
+                preload="metadata"
               />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <Play className="w-12 h-12 text-white" />
+              </div>
             )}
             
             {/* Play icon overlay for reels */}
-            <div className="absolute top-2 right-2">
-              <Play className="w-5 h-5 text-white drop-shadow-lg" fill="white" />
+            <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
+              <Play className="w-4 h-4 text-white drop-shadow-lg" fill="white" />
             </div>
             
             {/* Hover overlay with stats */}

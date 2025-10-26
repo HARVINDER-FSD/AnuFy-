@@ -633,8 +633,51 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
             )
           })()}
 
-          {/* Navigation areas - Exclude bottom 100px for controls */}
-          <div className="absolute inset-0 bottom-24 flex">
+          {/* Navigation areas with tap and swipe - Exclude bottom 100px for controls */}
+          <div 
+            className="absolute inset-0 bottom-24 flex"
+            onTouchStart={(e) => {
+              const touch = e.touches[0]
+              const startX = touch.clientX
+              const startY = touch.clientY
+              const startTime = Date.now()
+
+              const handleTouchEnd = (endEvent: TouchEvent) => {
+                const endTouch = endEvent.changedTouches[0]
+                const endX = endTouch.clientX
+                const endY = endTouch.clientY
+                const deltaX = endX - startX
+                const deltaY = endY - startY
+                const deltaTime = Date.now() - startTime
+
+                // Check if it's a swipe (moved more than 50px horizontally)
+                if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                  if (deltaX > 0) {
+                    // Swipe right - previous story
+                    onPrevious()
+                  } else {
+                    // Swipe left - next story
+                    onNext()
+                  }
+                } 
+                // Check if it's a tap (quick touch with minimal movement)
+                else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
+                  const screenWidth = window.innerWidth
+                  if (startX < screenWidth / 2) {
+                    // Tap left side - previous story
+                    onPrevious()
+                  } else {
+                    // Tap right side - next story
+                    onNext()
+                  }
+                }
+
+                document.removeEventListener('touchend', handleTouchEnd)
+              }
+
+              document.addEventListener('touchend', handleTouchEnd)
+            }}
+          >
             <div className="flex-1 cursor-pointer" onClick={onPrevious} />
             <div className="flex-1 cursor-pointer" onClick={onNext} />
           </div>

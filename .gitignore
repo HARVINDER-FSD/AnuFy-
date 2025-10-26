@@ -60,3 +60,7 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Local SSL certificates
+certificates/
+*.pem

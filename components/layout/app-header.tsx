@@ -2,9 +2,10 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/components/auth/auth-provider"
-import { Bell, MessageCircle, Search } from "lucide-react"
+import { MessageCircle, Search } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
+import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 
 export function AppHeader() {
   const { user } = useAuth()
@@ -65,19 +66,7 @@ export function AppHeader() {
             </Button>
           </Link>
 
-          <Link href="/notifications">
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-5 w-5" />
-              {notificationCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-                >
-                  {notificationCount > 9 ? "9+" : notificationCount}
-                </Badge>
-              )}
-            </Button>
-          </Link>
+          <NotificationDropdown />
         </div>
       </div>
     </header>

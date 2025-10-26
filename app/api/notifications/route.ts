@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { MongoClient, ObjectId } from 'mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
+import Notification from '@/models/notification';
+import User from '@/models/user';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
-
-// Get user notifications
 
 export const dynamic = 'force-dynamic';
 
+// Get user notifications
 export async function GET(request: Request) {
   try {
     // Check authorization header first
@@ -44,67 +45,67 @@ export async function GET(request: Request) {
       );
     }
     
+    await connectToDatabase();
+    
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
+    const unreadOnly = searchParams.get('unread') === 'true';
     
-    const client = await MongoClient.connect(MONGODB_URI);
-    const db = client.db();
+    // Build query
+    const query: any = { recipient_id: new mongoose.Types.ObjectId(userId) };
+    if (unreadOnly) {
+      query.is_read = false;
+    }
     
-    // Get notifications for the user
-    const notifications = await db.collection('notifications')
-      .aggregate([
-        { $match: { user_id: new ObjectId(userId) } },
-        { $sort: { created_at: -1 } },
-        { $skip: skip },
-        { $limit: limit },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'actor_id',
-            foreignField: '_id',
-            as: 'actor'
-          }
-        },
-        { $unwind: { path: '$actor', preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: 'posts',
-            localField: 'post_id',
-            foreignField: '_id',
-            as: 'post'
-          }
-        },
-        { $unwind: { path: '$post', preserveNullAndEmptyArrays: true } }
-      ])
-      .toArray();
+    // Get notifications with sender info
+    const notifications = await Notification.find(query)
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
     
-    const total = await db.collection('notifications')
-      .countDocuments({ user_id: new ObjectId(userId) });
+    // Get sender details
+    const senderIds = notifications.map(n => n.sender_id);
+    const senders = await User.find({ _id: { $in: senderIds } })
+      .select('username full_name avatar_url is_verified')
+      .lean();
     
-    await client.close();
+    const senderMap = new Map(senders.map(s => [s._id.toString(), s]));
     
-    // Format the response
-    const formattedNotifications = notifications.map(n => ({
-      id: n._id.toString(),
-      type: n.type,
-      content: n.content || '',
-      post_id: n.post_id?.toString() || null,
-      post_image: n.post?.media_urls?.[0] || null,
-      is_read: n.is_read || false,
-      created_at: n.created_at,
-      user: {
-        id: n.actor?._id?.toString() || '',
-        username: n.actor?.username || 'Unknown',
-        full_name: n.actor?.full_name || n.actor?.name || '',
-        avatar_url: n.actor?.avatar_url || n.actor?.avatar || '/placeholder-user.jpg',
-        is_verified: n.actor?.is_verified || false
-      }
-    }));
+    // Get unread count
+    const unreadCount = await Notification.countDocuments({
+      recipient_id: new mongoose.Types.ObjectId(userId),
+      is_read: false
+    });
+    
+    const total = await Notification.countDocuments(query);
+    
+    // Format notifications
+    const formattedNotifications = notifications.map(n => {
+      const sender = senderMap.get(n.sender_id.toString());
+      return {
+        id: n._id.toString(),
+        type: n.type,
+        message: n.message || '',
+        content_id: n.content_id?.toString() || null,
+        content_type: n.content_type || null,
+        is_read: n.is_read,
+        created_at: n.created_at,
+        sender: {
+          id: sender?._id?.toString() || '',
+          username: sender?.username || 'Unknown',
+          full_name: sender?.full_name || '',
+          avatar_url: sender?.avatar_url || '/placeholder-user.jpg',
+          is_verified: sender?.is_verified || false
+        }
+      };
+    });
     
     return NextResponse.json({ 
       notifications: formattedNotifications,
+      unread_count: unreadCount,
       pagination: {
         page,
         limit,
@@ -158,30 +159,27 @@ export async function PUT(request: Request) {
       );
     }
     
+    await connectToDatabase();
+    
     const body = await request.json();
     const { notificationId } = body;
     
-    const client = await MongoClient.connect(MONGODB_URI);
-    const db = client.db();
-    
     if (notificationId) {
       // Mark specific notification as read
-      await db.collection('notifications').updateOne(
+      await Notification.updateOne(
         { 
-          _id: new ObjectId(notificationId),
-          user_id: new ObjectId(userId)
+          _id: new mongoose.Types.ObjectId(notificationId),
+          recipient_id: new mongoose.Types.ObjectId(userId)
         },
         { $set: { is_read: true } }
       );
     } else {
       // Mark all notifications as read
-      await db.collection('notifications').updateMany(
-        { user_id: new ObjectId(userId) },
+      await Notification.updateMany(
+        { recipient_id: new mongoose.Types.ObjectId(userId) },
         { $set: { is_read: true } }
       );
     }
-    
-    await client.close();
     
     return NextResponse.json({ 
       success: true,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-provider"
 import { ArrowLeft, Camera, X, Play, Pause, Volume2, VolumeX } from "lucide-react"
@@ -32,6 +32,13 @@ export default function CreateReelPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const { toast } = useToast()
+
+  // Update video volume when slider changes
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume[0] / 100
+    }
+  }, [volume])
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
@@ -99,6 +106,53 @@ export default function CreateReelPage() {
     }
   }
 
+  const generateThumbnail = async (videoFile: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video')
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+
+      video.preload = 'metadata'
+      video.muted = true
+      video.playsInline = true
+
+      video.onloadedmetadata = () => {
+        // Set canvas size to video dimensions
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+
+        // Seek to 1 second or 10% of video duration
+        video.currentTime = Math.min(1, video.duration * 0.1)
+      }
+
+      video.onseeked = () => {
+        if (ctx) {
+          // Draw video frame to canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+          // Convert canvas to blob
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const reader = new FileReader()
+              reader.onloadend = () => {
+                resolve(reader.result as string)
+              }
+              reader.readAsDataURL(blob)
+            } else {
+              reject(new Error('Failed to generate thumbnail'))
+            }
+          }, 'image/jpeg', 0.8)
+        }
+      }
+
+      video.onerror = () => {
+        reject(new Error('Failed to load video'))
+      }
+
+      video.src = URL.createObjectURL(videoFile)
+    })
+  }
+
   const handleSubmit = async () => {
     if (!videoFile) {
       toast({
@@ -124,7 +178,19 @@ export default function CreateReelPage() {
         return
       }
 
-      // Upload to Cloudinary with progress
+      // Generate thumbnail from video
+      toast({
+        title: "Generating thumbnail...",
+        description: "Creating preview image from video.",
+      })
+
+      const thumbnailDataUrl = await generateThumbnail(videoFile)
+
+      // Convert data URL to blob for upload
+      const thumbnailBlob = await fetch(thumbnailDataUrl).then(r => r.blob())
+      const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' })
+
+      // Upload video to Cloudinary with progress
       toast({
         title: "Uploading video...",
         description: "This may take a moment for large files.",
@@ -134,7 +200,15 @@ export default function CreateReelPage() {
         setUploadProgress(progress)
       })
 
-      // Create reel with the uploaded URL
+      // Upload thumbnail to Cloudinary
+      toast({
+        title: "Uploading thumbnail...",
+        description: "Almost done!",
+      })
+
+      const thumbnailResult = await uploadToCloudinary(thumbnailFile)
+
+      // Create reel with the uploaded URLs
       const token = Cookies.get('client-token') || Cookies.get('token') || localStorage.getItem('token')
       if (!token) {
         toast({
@@ -154,7 +228,7 @@ export default function CreateReelPage() {
         },
         body: JSON.stringify({
           video_url: uploadResult.url,
-          thumbnail_url: uploadResult.url,
+          thumbnail_url: thumbnailResult.url,
           caption,
           location: showLocation ? location : null,
         }),
@@ -225,7 +299,11 @@ export default function CreateReelPage() {
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 muted={isMuted}
-                volume={volume[0] / 100}
+                onLoadedMetadata={() => {
+                  if (videoRef.current) {
+                    videoRef.current.volume = volume[0] / 100
+                  }
+                }}
               />
 
               {/* Video Controls Overlay */}

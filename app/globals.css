@@ -479,3 +479,32 @@
     animation: none;
   }
 }
+
+/* Animated waveform bars for music trimmer */
+@keyframes waveform-bounce {
+  0%, 100% {
+    transform: scaleY(0.8);
+  }
+  50% {
+    transform: scaleY(1.2);
+  }
+}
+
+@keyframes waveform-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scaleY(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1.1);
+  }
+}
+
+.animate-waveform-bounce {
+  animation: waveform-bounce 0.6s ease-in-out infinite;
+}
+
+.animate-waveform-pulse {
+  animation: waveform-pulse 0.8s ease-in-out infinite;
+}
