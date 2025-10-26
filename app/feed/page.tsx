@@ -11,26 +11,21 @@ import { useAuth } from "@/components/auth/auth-provider"
 
 export default function FeedPage() {
   const { posts, loading, error, likePost, bookmarkPost, sharePost, commentOnPost, deletePost } = usePosts()
-  const { user, loading: authLoading } = useAuth()
+  const { user } = useAuth()
   const router = useRouter()
 
-  // Redirect to login if not authenticated
+  // Handle auth redirect AFTER render to avoid hydration issues
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login')
+    if (!user) {
+      // Use setTimeout to avoid hydration mismatch
+      const timer = setTimeout(() => {
+        router.push('/login')
+      }, 0)
+      return () => clearTimeout(timer)
     }
-  }, [user, authLoading, router])
+  }, [user, router])
 
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
-  // Don't render if no user (will redirect)
+  // Don't render content if no user (will redirect)
   if (!user) {
     return null
   }

@@ -15,6 +15,11 @@ export function useNotificationPolling(userId: string | undefined, interval = 10
         const token = localStorage.getItem('token') || 
                       document.cookie.split('; ').find(row => row.startsWith('client-token='))?.split('=')[1];
         
+        if (!token) {
+          // No token, skip silently
+          return;
+        }
+        
         const response = await fetch('/api/notifications', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -25,9 +30,12 @@ export function useNotificationPolling(userId: string | undefined, interval = 10
           const data = await response.json();
           setNotifications(data.notifications || []);
           setUnreadCount(data.unread_count || 0);
+        } else if (response.status === 401) {
+          // Unauthorized, stop polling
+          return;
         }
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        // Silently fail - don't spam console
       }
     };
 

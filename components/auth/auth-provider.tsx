@@ -39,45 +39,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast()
 
   useEffect(() => {
-    // Ultra-fast token verification - instant loading
-    const verifyToken = async () => {
-      try {
-        const token = getAuthToken()
-        
-        if (!token) {
-          setUser(null)
-          setLoading(false)
-          return
-        }
-        
-        // Decode token instantly - no API call needed
-        const decoded = jwtDecode(token) as any
-        
-        // Set user immediately from token (0ms delay)
-        const quickUser = {
-          id: decoded.userId || decoded.sub,
-          username: decoded.username || '',
-          email: decoded.email || '',
-          name: decoded.name || decoded.username || '',
-          avatar: decoded.avatar || '/placeholder-user.jpg',
-          bio: decoded.bio || '',
-          followers: decoded.followers || 0,
-          following: decoded.following || 0,
-          verified: decoded.verified || false,
-          posts_count: decoded.posts_count || 0
-        }
-        setUser(quickUser)
-        setLoading(false) // Instant - no waiting
-        
-      } catch (error) {
-        console.error("Auth error:", error)
-        removeAuthToken()
+    // INSTANT auth check - no loading delay
+    try {
+      const token = getAuthToken()
+      
+      if (!token) {
         setUser(null)
         setLoading(false)
+        return
       }
+      
+      // Decode token instantly - no API call needed
+      const decoded = jwtDecode(token) as any
+      
+      // Set user immediately from token (0ms delay)
+      const quickUser = {
+        id: decoded.userId || decoded.sub,
+        username: decoded.username || '',
+        email: decoded.email || '',
+        name: decoded.name || decoded.username || '',
+        avatar: decoded.avatar || '/placeholder-user.jpg',
+        bio: decoded.bio || '',
+        followers: decoded.followers || 0,
+        following: decoded.following || 0,
+        verified: decoded.verified || false,
+        posts_count: decoded.posts_count || 0
+      }
+      setUser(quickUser)
+      setLoading(false) // Instant - no waiting
+      
+    } catch (error) {
+      console.error("Auth error:", error)
+      removeAuthToken()
+      setUser(null)
+      setLoading(false)
     }
-    
-    verifyToken()
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
