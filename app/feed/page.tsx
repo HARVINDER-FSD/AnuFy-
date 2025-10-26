@@ -12,16 +12,26 @@ import { useAuth } from "@/components/auth/auth-provider"
 export default function FeedPage() {
   const { posts, loading, error, likePost, bookmarkPost, sharePost, commentOnPost, deletePost } = usePosts()
   const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      window.location.href = '/login'
+      router.replace('/login')
     }
-  }, [user, authLoading])
+  }, [user, authLoading, router])
 
-  // Show nothing while checking auth
-  if (authLoading || !user) {
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  // Don't render if no user (will redirect)
+  if (!user) {
     return null
   }
 

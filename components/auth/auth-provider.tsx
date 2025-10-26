@@ -190,8 +190,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       removeAuthToken();
       setUser(null);
       
-      // Force hard redirect to login page
-      window.location.href = "/login";
+      // Use router.replace for cleaner navigation
+      router.replace("/login");
     }
   };
 
