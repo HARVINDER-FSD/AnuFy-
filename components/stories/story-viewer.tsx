@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, ChevronLeft, ChevronRight, Heart, Send, MoreHorizontal, Trash2, Music, Eye, AtSign, Download, Archive, EyeOff, Link2, MessageCircleOff, Share2 } from "lucide-react"
+import { X, Heart, Send, MoreHorizontal, Trash2, Music, Eye, AtSign, Download, Archive, EyeOff, Link2, MessageCircleOff, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -633,10 +633,12 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
             )
           })()}
 
-          {/* Navigation areas with tap and swipe - Exclude bottom 100px for controls */}
+          {/* Navigation areas - Mobile-first touch gestures */}
           <div 
-            className="absolute inset-0 bottom-24 flex"
+            className="absolute inset-0 bottom-24"
+            style={{ touchAction: 'manipulation' }}
             onTouchStart={(e) => {
+              e.stopPropagation()
               const touch = e.touches[0]
               const startX = touch.clientX
               const startY = touch.clientY
@@ -663,24 +665,34 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
                 // Check if it's a tap (quick touch with minimal movement)
                 else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
                   const screenWidth = window.innerWidth
-                  if (startX < screenWidth / 2) {
-                    // Tap left side - previous story
+                  if (startX < screenWidth / 3) {
+                    // Tap left third - previous story
                     onPrevious()
-                  } else {
-                    // Tap right side - next story
+                  } else if (startX > (screenWidth * 2) / 3) {
+                    // Tap right third - next story
                     onNext()
                   }
+                  // Middle third does nothing (for pause/hold)
                 }
 
                 document.removeEventListener('touchend', handleTouchEnd)
               }
 
-              document.addEventListener('touchend', handleTouchEnd)
+              document.addEventListener('touchend', handleTouchEnd, { passive: true })
             }}
-          >
-            <div className="flex-1 cursor-pointer" onClick={onPrevious} />
-            <div className="flex-1 cursor-pointer" onClick={onNext} />
-          </div>
+            onClick={(e) => {
+              // Desktop fallback
+              const rect = e.currentTarget.getBoundingClientRect()
+              const x = e.clientX - rect.left
+              const width = rect.width
+              
+              if (x < width / 3) {
+                onPrevious()
+              } else if (x > (width * 2) / 3) {
+                onNext()
+              }
+            }}
+          />
         </div>
 
         {/* Bottom actions - Different for owner vs viewer */}
@@ -863,29 +875,6 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
             </div>
           )}
         </div>
-
-        {/* Navigation arrows */}
-        {currentIndex > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
-            onClick={onPrevious}
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </Button>
-        )}
-
-        {currentIndex < stories.length - 1 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
-            onClick={onNext}
-          >
-            <ChevronRight className="h-6 w-6" />
-          </Button>
-        )}
 
         {/* Views/Likes Modal */}
         {showViewsModal && isOwner && (
