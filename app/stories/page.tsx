@@ -28,7 +28,8 @@ function StoriesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentUserIndex, setCurrentUserIndex] = useState(0)
+  const [currentStoryIndex, setCurrentStoryIndex] = useState(0)
   const [stories, setStories] = useState<Story[]>([])
   const [loadingStories, setLoadingStories] = useState(true)
   const [groupedStories, setGroupedStories] = useState<any[]>([])
@@ -75,7 +76,7 @@ function StoriesContent() {
           if (viewingUserId) {
             const userIndex = groupedArray.findIndex((g: any) => g.user_id === viewingUserId)
             if (userIndex !== -1) {
-              setCurrentIndex(userIndex)
+              setCurrentUserIndex(userIndex)
             }
           }
         }
@@ -120,16 +121,39 @@ function StoriesContent() {
 
   // Story navigation handlers
   const handleNext = () => {
-    if (currentIndex < groupedStories.length - 1) {
-      setCurrentIndex(currentIndex + 1)
+    const currentGroup = groupedStories[currentUserIndex]
+    if (!currentGroup) return
+
+    // Check if there are more stories in current user's group
+    if (currentStoryIndex < currentGroup.stories.length - 1) {
+      // Move to next story of same user
+      setCurrentStoryIndex(currentStoryIndex + 1)
     } else {
-      router.push("/feed")
+      // Finished current user's stories, move to next user
+      if (currentUserIndex < groupedStories.length - 1) {
+        setCurrentUserIndex(currentUserIndex + 1)
+        setCurrentStoryIndex(0)
+      } else {
+        // Finished all stories, return to feed
+        router.push("/feed")
+      }
     }
   }
 
   const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1)
+    // Check if there are previous stories in current user's group
+    if (currentStoryIndex > 0) {
+      // Move to previous story of same user
+      setCurrentStoryIndex(currentStoryIndex - 1)
+    } else {
+      // At first story of current user, move to previous user's last story
+      if (currentUserIndex > 0) {
+        const prevUserIndex = currentUserIndex - 1
+        const prevGroup = groupedStories[prevUserIndex]
+        setCurrentUserIndex(prevUserIndex)
+        setCurrentStoryIndex(prevGroup.stories.length - 1)
+      }
+      // If already at first user's first story, do nothing
     }
   }
 
@@ -137,35 +161,37 @@ function StoriesContent() {
     router.push("/feed")
   }
 
-  // Format stories for StoryViewer component
-  const formattedStories = groupedStories.flatMap((group: any) =>
-    group.stories.map((story: Story) => ({
-      id: story.id,
-      user: {
-        id: story.user_id,
-        username: story.username,
-        avatar: story.avatar_url,
-      },
-      media: story.media_url,
-      type: story.media_type as "image" | "video",
-      timestamp: new Date(story.created_at).toLocaleString(),
-      views: story.views_count,
-      liked: false,
-      caption: story.caption,
-      texts: story.texts || [],
-      stickers: story.stickers || [],
-      drawings: story.drawings || [],
-      filter: story.filter || 'none',
-      music: story.music || null,
-      isOwner: story.user_id === user?.id
-    }))
-  )
+  // Get current user's stories
+  const currentGroup = groupedStories[currentUserIndex]
+  if (!currentGroup) return null
+
+  // Format current user's stories for StoryViewer component
+  const formattedStories = currentGroup.stories.map((story: Story) => ({
+    id: story.id,
+    user: {
+      id: story.user_id,
+      username: story.username,
+      avatar: story.avatar_url,
+    },
+    media: story.media_url,
+    type: story.media_type as "image" | "video",
+    timestamp: new Date(story.created_at).toLocaleString(),
+    views: story.views_count,
+    liked: false,
+    caption: story.caption,
+    texts: story.texts || [],
+    stickers: story.stickers || [],
+    drawings: story.drawings || [],
+    filter: story.filter || 'none',
+    music: story.music || null,
+    isOwner: story.user_id === user?.id
+  }))
 
   return (
     <div className="fixed inset-0 z-50">
       <StoryViewer
         stories={formattedStories}
-        currentIndex={currentIndex}
+        currentIndex={currentStoryIndex}
         onNext={handleNext}
         onPrevious={handlePrevious}
         onClose={handleClose}

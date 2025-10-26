@@ -471,7 +471,7 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
         <audio ref={audioRef} loop />
 
         {/* Progress bars */}
-        <div className="absolute top-4 left-4 right-4 flex gap-1 z-10">
+        <div className="absolute top-4 left-4 right-4 flex gap-1 z-[60] pointer-events-none">
           {stories.map((_, index) => (
             <div key={index} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
               <div
@@ -485,15 +485,28 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
         </div>
 
         {/* Header - Only user info */}
-        <div className="absolute top-8 left-4 right-4 flex items-center z-10">
-          <Avatar className="h-8 w-8 border-2 border-white">
-            <AvatarImage src={currentStory.user.avatar || "/placeholder.svg"} alt={currentStory.user.username} />
-            <AvatarFallback>{currentStory.user.username.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <div className="ml-3">
-            <span className="text-white font-semibold text-sm">{currentStory.user.username}</span>
-            <span className="text-white/70 text-xs ml-2">{currentStory.timestamp}</span>
+        <div className="absolute top-8 left-4 right-4 flex items-center justify-between z-[60] pointer-events-none">
+          <div className="flex items-center">
+            <Avatar className="h-8 w-8 border-2 border-white">
+              <AvatarImage src={currentStory.user.avatar || "/placeholder.svg"} alt={currentStory.user.username} />
+              <AvatarFallback>{currentStory.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="ml-3">
+              <span className="text-white font-semibold text-sm">{currentStory.user.username}</span>
+              <span className="text-white/70 text-xs ml-2">{currentStory.timestamp}</span>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white hover:bg-white/20 h-8 w-8 p-0 pointer-events-auto"
+            onClick={(e) => {
+              e.stopPropagation()
+              onClose()
+            }}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
         {/* Story Content */}
@@ -633,12 +646,11 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
             )
           })()}
 
-          {/* Navigation areas - Mobile-first touch gestures */}
-          <div 
-            className="absolute inset-0 bottom-24"
+          {/* Navigation areas - FULL SCREEN touch zones with highest z-index */}
+          <div
+            className="absolute inset-0 z-50 pointer-events-auto"
             style={{ touchAction: 'manipulation' }}
             onTouchStart={(e) => {
-              e.stopPropagation()
               const touch = e.touches[0]
               const startX = touch.clientX
               const startY = touch.clientY
@@ -661,18 +673,18 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
                     // Swipe left - next story
                     onNext()
                   }
-                } 
+                }
                 // Check if it's a tap (quick touch with minimal movement)
                 else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
                   const screenWidth = window.innerWidth
-                  if (startX < screenWidth / 3) {
-                    // Tap left third - previous story
+                  // Tap left half - previous story
+                  if (startX < screenWidth / 2) {
                     onPrevious()
-                  } else if (startX > (screenWidth * 2) / 3) {
-                    // Tap right third - next story
+                  }
+                  // Tap right half - next story
+                  else {
                     onNext()
                   }
-                  // Middle third does nothing (for pause/hold)
                 }
 
                 document.removeEventListener('touchend', handleTouchEnd)
@@ -685,10 +697,13 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
               const rect = e.currentTarget.getBoundingClientRect()
               const x = e.clientX - rect.left
               const width = rect.width
-              
-              if (x < width / 3) {
+
+              // Click left half - previous
+              if (x < width / 2) {
                 onPrevious()
-              } else if (x > (width * 2) / 3) {
+              }
+              // Click right half - next
+              else {
                 onNext()
               }
             }}
@@ -696,7 +711,7 @@ export function StoryViewer({ stories, currentIndex, onClose, onNext, onPrevious
         </div>
 
         {/* Bottom actions - Different for owner vs viewer */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 pb-safe pointer-events-none">
+        <div className="absolute bottom-0 left-0 right-0 z-[60] pb-safe pointer-events-none">
           {isOwner ? (
             /* Owner actions: Send Story, Mention, Eye, Menu - All in one line */
             <div className="p-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-auto">
