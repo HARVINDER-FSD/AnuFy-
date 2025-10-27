@@ -64,3 +64,5 @@ temp/
 # Local SSL certificates
 certificates/
 *.pem
+
+.vercel

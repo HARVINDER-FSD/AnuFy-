@@ -94,9 +94,18 @@
 @layer base {
   * {
     @apply border-border;
+    /* Remove tap highlight on mobile */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Remove tap highlight from all interactive elements */
+  button, a, input, textarea, select, [role="button"], [tabindex] {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
 }
 

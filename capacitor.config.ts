@@ -4,16 +4,13 @@ const config: CapacitorConfig = {
   appId: 'com.anufy.app',
   appName: 'Anufy',
   webDir: 'public',
-  
-  // Server configuration - point to your deployed API or local dev server
+
+  // Server configuration - Point to deployed app
   server: {
-    // For development, use your local server
-    url: 'http://localhost:3000',
-    // For production, use your deployed URL
-    // url: 'https://your-app.vercel.app',
-    cleartext: true,
-    androidScheme: 'http',
-    iosScheme: 'http',
+    url: 'https://socialmediabackendfinalss.vercel.app',
+    cleartext: false,
+    androidScheme: 'https',
+    iosScheme: 'https',
     allowNavigation: ['*']
   },
 
@@ -54,14 +51,14 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert']
     },
-    
+
     // Local Notifications
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',
       iconColor: '#2dd4bf',
       sound: 'default'
     },
-    
+
     // Badge
     Badge: {
       persist: true,
