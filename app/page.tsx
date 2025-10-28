@@ -1,37 +1,48 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { SplashScreen } from "@/components/splash-screen"
 import { useAuth } from "@/components/auth/auth-provider"
 
 export default function HomePage() {
-  const [showSplash, setShowSplash] = useState(true)
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  return <HomePageContent />
+}
+
+function HomePageContent() {
   const router = useRouter()
   const { user, loading } = useAuth()
 
   useEffect(() => {
     if (!loading) {
-      // After splash screen completes, redirect based on auth status
-      if (!showSplash) {
-        if (user) {
-          router.push('/feed')
-        } else {
-          router.push('/login')
-        }
+      if (user) {
+        router.push('/feed')
+      } else {
+        router.push('/login')
       }
     }
-  }, [showSplash, user, loading, router])
+  }, [user, loading, router])
 
   return (
-    <>
-      {showSplash ? (
-        <SplashScreen onComplete={() => setShowSplash(false)} />
-      ) : (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-    </>
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
   )
 }

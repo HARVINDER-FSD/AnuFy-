@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import { connectToDatabase } from '@/lib/mongodb'
-import { notifyPostLike } from '@/lib/notification-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -111,7 +110,14 @@ export async function POST(
 
         // Create notification (if not own post)
         if (post.user_id && post.user_id.toString() !== userId) {
-          await notifyPostLike(post.user_id.toString(), userId, postId).catch(() => {})
+          await db.collection('notifications').insertOne({
+            type: 'like',
+            to_user_id: new ObjectId(post.user_id),
+            from_user_id: new ObjectId(userId),
+            post_id: new ObjectId(postId),
+            read: false,
+            created_at: new Date()
+          }).catch(() => { }) // Ignore duplicate notification errors
         }
       } catch (error: any) {
         // If duplicate key error, it means it was already liked
@@ -148,7 +154,7 @@ export async function POST(
       success: true,
       liked,
       likeCount,
-      likedBy: recentLikes && Array.isArray(recentLikes) ? recentLikes.map((like: any) => like.username || '') : []
+      likedBy: recentLikes.map((like: any) => like.username)
     })
   } catch (error: any) {
     console.error('[Like API] Error:', error)

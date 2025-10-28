@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PostCard } from "@/components/posts/post-card"
 import { useDebounce } from "@/hooks/use-debounce"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 
 interface SearchResults {
   users: any[]
@@ -101,7 +101,7 @@ export default function SearchPage() {
           reels: data.reels?.length || 0,
           users: data.users?.length || 0
         })
-        
+
         // Log first reel to check thumbnail
         if (data.reels && data.reels.length > 0) {
           console.log('First reel data:', {
@@ -112,7 +112,7 @@ export default function SearchPage() {
             video_url: data.reels[0].video_url
           })
         }
-        
+
         setTrendingContent(data)
       }
     } catch (error) {
@@ -340,7 +340,7 @@ export default function SearchPage() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       {/* Search Bar */}
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           placeholder="Search users, posts, or hashtags..."
           value={searchQuery}
@@ -348,7 +348,7 @@ export default function SearchPage() {
           className="pl-10 pr-10"
         />
         {isSearching && (
-          <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+          <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
         )}
       </div>
 
@@ -361,7 +361,7 @@ export default function SearchPage() {
 
         <TabsContent value="trending" className="space-y-4">
           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-primary" />
+            <TrendingUp className="h-6 w-6 text-primary" />
             <h2 className="text-lg font-semibold">Trending Now</h2>
           </div>
 
@@ -437,11 +437,11 @@ export default function SearchPage() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Play className="h-8 w-8 text-white" />
+                              <Play className="h-10 w-10 text-white" />
                             </div>
                           )}
                           <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
-                            <Play className="h-3 w-3 text-white fill-white" />
+                            <Play className="h-4 w-4 text-white fill-white" />
                           </div>
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs">
                             <span>❤️ {reel.likes_count || 0}</span>
@@ -459,7 +459,7 @@ export default function SearchPage() {
                 (!trendingContent.reels || trendingContent.reels.length === 0) &&
                 (!trendingContent.users || trendingContent.users.length === 0) && (
                   <div className="text-center py-12">
-                    <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <TrendingUp className="h-14 w-14 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No trending content yet</h3>
                     <p className="text-muted-foreground">Check back later for trending posts and reels</p>
                   </div>
@@ -514,7 +514,7 @@ export default function SearchPage() {
 
         <TabsContent value="people" className="space-y-4">
           <div className="flex items-center gap-2 mb-4">
-            <Users className="h-5 w-5 text-primary" />
+            <Users className="h-6 w-6 text-primary" />
             <h2 className="text-lg font-semibold">
               {searchQuery ? `People matching "${searchQuery}"` : "Suggested for You"}
             </h2>
@@ -559,7 +559,7 @@ export default function SearchPage() {
 
           {searchQuery && searchResults.users.length === 0 && !isSearching && (
             <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <Users className="h-14 w-14 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No users found</h3>
               <p className="text-muted-foreground">Try searching with different keywords</p>
             </div>
@@ -581,7 +581,7 @@ export default function SearchPage() {
                 </div>
               ) : !isSearching ? (
                 <div className="text-center py-8">
-                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <Search className="h-14 w-14 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No posts found</h3>
                   <p className="text-muted-foreground">Try searching with different keywords</p>
                 </div>
@@ -589,7 +589,7 @@ export default function SearchPage() {
             </>
           ) : (
             <div className="text-center py-8">
-              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <Search className="h-14 w-14 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Search for posts</h3>
               <p className="text-muted-foreground">Enter a search term to find relevant posts</p>
             </div>

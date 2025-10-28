@@ -17,13 +17,14 @@ export const CacheKeys = {
 // Cache TTL constants (in seconds)
 export const CacheTTL = {
   SESSION: 3600, // 1 hour
-  FEED: 300, // 5 minutes
-  POST_STATS: 1800, // 30 minutes
+  FEED: 900, // 15 minutes (increased from 5 minutes for better performance)
+  POST_STATS: 3600, // 1 hour (increased from 30 minutes)
   USER_ONLINE: 300, // 5 minutes
   VISITOR_COUNT: 86400, // 24 hours
-  USER_PROFILE: 1800, // 30 minutes
+  USER_PROFILE: 3600, // 1 hour (increased from 30 minutes)
   STORY_STATS: 1800, // 30 minutes
   REEL_STATS: 1800, // 30 minutes
+  PREFETCH: 1800, // 30 minutes (for prefetched data)
 };
 
 // Feed caching utilities

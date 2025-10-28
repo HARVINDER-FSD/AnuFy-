@@ -56,6 +56,7 @@ interface PostCardProps {
   currentUserId?: string
 }
 
+// Version: 2.0 - Updated icon sizes
 export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelete, currentUserId }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.liked)
   const [isBookmarked, setIsBookmarked] = useState(post.bookmarked)
@@ -301,7 +302,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
         {/* Post Header */}
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-12 w-12">
               <AvatarImage src={post.user.avatar || "/placeholder.svg"} alt={post.user.username} />
               <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
@@ -325,7 +326,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
               size="sm"
               onClick={() => setShowMenu(!showMenu)}
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-5 w-5" />
             </Button>
 
             {showMenu && (
@@ -346,7 +347,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
                         setShowDeleteDialog(true)
                       }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" />
                       Delete Post
                     </button>
                   )}
@@ -358,7 +359,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
                         setShowReportModal(true)
                       }}
                     >
-                      <Flag className="h-4 w-4" />
+                      <Flag className="h-5 w-5" />
                       Report Post
                     </button>
                   )}
@@ -376,7 +377,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
         {/* Post Media */}
         {post.image && (
           <div className="aspect-square bg-muted relative">
-            <img src={post.image || "/placeholder.svg"} alt="Post content" className="w-full h-full object-contain" />
+            <img src={post.image || "/placeholder.svg"} alt="Post content" className="w-full h-full object-contain" loading="lazy" decoding="async" />
           </div>
         )}
 
@@ -385,7 +386,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
             <video src={post.video} className="w-full h-full object-contain" controls={false} poster="/placeholder.jpg" />
             <div className="absolute inset-0 flex items-center justify-center">
               <Button size="lg" className="rounded-full w-16 h-16">
-                <Play className="h-6 w-6 ml-1" />
+                <Play className="h-7 w-7 ml-1" />
               </Button>
             </div>
           </div>
@@ -398,26 +399,26 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-full"
+                className="h-10 w-10 rounded-full"
                 onClick={handleLike}
                 disabled={isLikeDisabled}
               >
-                <Heart className={`h-6 w-6 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
+                <Heart className={`h-7 w-7 ${isLiked ? "fill-red-500 text-red-500" : ""}`} />
               </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={handleComment}>
-                <MessageCircle className="h-6 w-6" />
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full" onClick={handleComment}>
+                <MessageCircle className="h-7 w-7" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={handleShare}>
-                <Share className="h-6 w-6" />
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full" onClick={handleShare}>
+                <Share className="h-7 w-7" />
               </Button>
               {isOwner && (
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-red-500" onClick={() => setShowDeleteDialog(true)}>
-                  <Trash2 className="h-6 w-6" />
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-red-500" onClick={() => setShowDeleteDialog(true)}>
+                  <Trash2 className="h-7 w-7" />
                 </Button>
               )}
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={handleBookmark}>
-              <Bookmark className={`h-6 w-6 ${isBookmarked ? "fill-foreground" : ""}`} />
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full" onClick={handleBookmark}>
+              <Bookmark className={`h-7 w-7 ${isBookmarked ? "fill-foreground" : ""}`} />
             </Button>
           </div>
 
@@ -448,7 +449,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
             ) : comments.length > 0 ? (
               comments.map((comment) => (
                 <div key={comment._id || comment.id} className="flex gap-3 pb-3 border-b">
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-10 w-10">
                     <AvatarImage src={comment.user_avatar || comment.userAvatar || "/placeholder.svg"} alt={comment.username} />
                     <AvatarFallback>{comment.username?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
@@ -481,7 +482,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
               onClick={submitComment}
               disabled={!commentText.trim()}
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-5 w-5" />
             </Button>
           </div>
         </DialogContent>

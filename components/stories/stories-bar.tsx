@@ -196,7 +196,7 @@ export function StoriesBar() {
           onClick={() => myStories ? handleStoryClick(user.id) : handleCreateStory()}
         >
           <div className="relative">
-            <Avatar className={`h-14 w-14 sm:h-16 sm:w-16 md:h-18 md:w-18 border-2 ${myStories
+            <Avatar className={`h-16 w-16 sm:h-18 sm:w-18 md:h-20 md:w-20 border-2 ${myStories
               ? viewedStories.has(user.id)
                 ? 'ring-2 border-gray-400 ring-gray-400/20'
                 : 'ring-2 border-primary ring-primary/20'
@@ -211,8 +211,8 @@ export function StoriesBar() {
               </AvatarFallback>
             </Avatar>
             {!myStories && (
-              <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 w-5 h-5 sm:w-6 sm:h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background">
-                <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-foreground" />
+              <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 w-6 h-6 sm:w-7 sm:h-7 bg-primary rounded-full flex items-center justify-center border-2 border-background">
+                <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary-foreground" />
               </div>
             )}
           </div>
@@ -227,7 +227,7 @@ export function StoriesBar() {
         // Loading skeleton - reduced to 3 for faster perceived load
         Array.from({ length: 3 }).map((_, i) => (
           <div key={`story-skeleton-${i}`} className="flex flex-col items-center gap-1.5 md:gap-2 min-w-0 flex-shrink-0">
-            <div className="h-14 w-14 sm:h-16 sm:w-16 md:h-18 md:w-18 rounded-full bg-muted animate-pulse" />
+            <div className="h-16 w-16 sm:h-18 sm:w-18 md:h-20 md:w-20 rounded-full bg-muted animate-pulse" />
             <div className="h-2.5 sm:h-3 w-10 sm:w-12 bg-muted rounded animate-pulse" />
           </div>
         ))
@@ -241,7 +241,7 @@ export function StoriesBar() {
               onClick={() => handleStoryClick(userStory.user_id)}
             >
               <div className="relative">
-                <Avatar className={`h-14 w-14 sm:h-16 sm:w-16 md:h-18 md:w-18 border-2 ring-2 ${isViewed
+                <Avatar className={`h-16 w-16 sm:h-18 sm:w-18 md:h-20 md:w-20 border-2 ring-2 ${isViewed
                   ? 'border-gray-400 ring-gray-400/20'
                   : 'border-primary ring-primary/20'
                   }`}>

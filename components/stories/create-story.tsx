@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Camera, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 

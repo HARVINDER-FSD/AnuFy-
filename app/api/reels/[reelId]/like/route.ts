@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient, ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
-import { notifyReelLike } from '@/lib/notification-service';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
@@ -72,30 +71,23 @@ export async function POST(
         reel_id: new ObjectId(reelId),
         user_id: new ObjectId(decoded.userId),
         created_at: new Date(),
-      }, { writeConcern: { w: 'majority', j: true, wtimeout: 5000 } });
-      
+      });
       await db.collection("reels").updateOne(
         { _id: new ObjectId(reelId) },
         { $inc: { likes_count: 1 } }
       );
-      
-      // Verify the like was saved
-      const verifyLike = await db.collection("reel_likes").findOne({
-        reel_id: new ObjectId(reelId),
-        user_id: new ObjectId(decoded.userId),
-      });
-      
-      if (!verifyLike) {
-        console.error('[Reel Like API] CRITICAL: Like was NOT saved to database!');
-        throw new Error('Like was not saved to database');
-      }
-      console.log('[Reel Like API] Verified like exists in database');
-      
       liked = true;
       
       // Create notification for reel owner (if not liking own reel)
       if (reel.user_id && reel.user_id.toString() !== decoded.userId) {
-        await notifyReelLike(reel.user_id.toString(), decoded.userId, reelId).catch(() => {});
+        await db.collection('notifications').insertOne({
+          type: 'like',
+          to_user_id: new ObjectId(reel.user_id),
+          from_user_id: new ObjectId(decoded.userId),
+          reel_id: new ObjectId(reelId),
+          read: false,
+          created_at: new Date()
+        });
       }
     }
     

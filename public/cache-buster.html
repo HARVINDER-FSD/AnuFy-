@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnuFy - Cache Buster Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .version-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .version-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .version-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+        .button-group {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            box-shadow: none;
+        }
+        .secondary:hover {
+            background: #f5f5ff;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .info-box h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .info-box p {
+            color: #555;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .success {
+            background: #4caf50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+            font-weight: 600;
+        }
+        .keyboard-shortcut {
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 AnuFy Cache Buster</h1>
+        <p class="subtitle">Never see old content again!</p>
+
+        <div class="version-box">
+            <div class="version-label">Current Version</div>
+            <div class="version-value" id="version">Loading...</div>
+        </div>
+
+        <div class="button-group">
+            <button onclick="clearEverything()">
+                🔥 Clear Everything & Reload
+            </button>
+            <button onclick="hardRefresh()" class="secondary">
+                ⚡ Hard Refresh Only
+            </button>
+            <button onclick="goToApp()" class="secondary">
+                🏠 Go to App
+            </button>
+        </div>
+
+        <div class="info-box">
+            <h3>💡 Quick Keyboard Shortcuts</h3>
+            <p>
+                <strong>Hard Refresh:</strong> <span class="keyboard-shortcut">Ctrl + Shift + R</span> (Windows/Linux) or <span class="keyboard-shortcut">Cmd + Shift + R</span> (Mac)<br><br>
+                <strong>Clear Cache:</strong> <span class="keyboard-shortcut">Ctrl + Shift + Delete</span> (Windows/Linux) or <span class="keyboard-shortcut">Cmd + Shift + Delete</span> (Mac)
+            </p>
+        </div>
+
+        <div class="info-box">
+            <h3>🎯 Pro Tip for Development</h3>
+            <p>
+                Open DevTools (F12) → Network tab → Check "Disable cache"<br>
+                Keep DevTools open while developing to always get fresh content!
+            </p>
+        </div>
+
+        <div class="success" id="success">
+            ✅ Cache cleared! Reloading...
+        </div>
+    </div>
+
+    <script>
+        // Show current version
+        function updateVersion() {
+            const version = document.body.dataset.version || 'Unknown';
+            document.getElementById('version').textContent = version;
+        }
+
+        // Clear everything
+        function clearEverything() {
+            // Clear all storage
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Clear cookies (except essential ones)
+            document.cookie.split(";").forEach(function(c) { 
+                const cookieName = c.split("=")[0].trim();
+                // Don't clear auth tokens
+                if (!cookieName.includes('token')) {
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                }
+            });
+
+            // Show success message
+            document.getElementById('success').style.display = 'block';
+
+            // Reload with cache bypass
+            setTimeout(() => {
+                window.location.href = 'http://localhost:3001/feed?' + Date.now();
+            }, 1500);
+        }
+
+        // Hard refresh
+        function hardRefresh() {
+            window.location.reload(true);
+        }
+
+        // Go to app
+        function goToApp() {
+            window.location.href = 'http://localhost:3001/feed?' + Date.now();
+        }
+
+        // Update version on load
+        updateVersion();
+
+        // Auto-refresh version every 2 seconds
+        setInterval(updateVersion, 2000);
+    </script>
+</body>
+</html>

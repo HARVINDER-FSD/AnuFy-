@@ -119,7 +119,7 @@ export default function SavedPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <Bookmark className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <Bookmark className="h-14 w-14 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium mb-2">No saved items</h3>
               <p className="text-muted-foreground">
                 Save photos and videos that you want to see again
@@ -131,7 +131,7 @@ export default function SavedPage() {
         <TabsContent value="posts">
           {/* Same content as "all" but filtered for posts only */}
           <div className="text-center py-12">
-            <Bookmark className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <Bookmark className="h-14 w-14 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-medium mb-2">No saved posts</h3>
             <p className="text-muted-foreground">
               Save photos that you want to see again
@@ -142,7 +142,7 @@ export default function SavedPage() {
         <TabsContent value="reels">
           {/* Same content as "all" but filtered for reels only */}
           <div className="text-center py-12">
-            <Bookmark className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <Bookmark className="h-14 w-14 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-medium mb-2">No saved reels</h3>
             <p className="text-muted-foreground">
               Save videos that you want to see again

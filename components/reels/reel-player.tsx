@@ -79,6 +79,7 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [isVideoLoading, setIsVideoLoading] = useState(true)
   const { toast } = useToast()
 
   const isOwner = currentUserId === reel.user.id || reel.isOwner
@@ -93,12 +94,7 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video) {
-      console.log('ReelPlayer: No video ref')
-      return
-    }
-
-    console.log('ReelPlayer: isActive changed to', isActive, 'for reel', reel.id)
+    if (!video) return
 
     if (isActive) {
       // Reset to muted when becoming active (for autoplay to work)
@@ -106,43 +102,27 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
       setIsMuted(true)
       setHasInteracted(false)
 
-      console.log('ReelPlayer: Attempting to play reel', reel.id)
-
-      // Load the video first
-      video.load()
-
-      // Small delay to ensure video is ready
-      const timer = setTimeout(() => {
-        const playPromise = video.play()
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log('ReelPlayer: Successfully playing reel', reel.id)
-              setIsPlaying(true)
-            })
-            .catch((error) => {
-              console.log('ReelPlayer: Autoplay prevented for reel', reel.id, error)
-              // Autoplay was prevented, try again after a short delay
-              setTimeout(() => {
-                video.play()
-                  .then(() => {
-                    console.log('ReelPlayer: Retry successful for reel', reel.id)
-                    setIsPlaying(true)
-                  })
-                  .catch((err) => {
-                    console.log('ReelPlayer: Retry failed for reel', reel.id, err)
-                  })
-              }, 200)
-            })
+      // Preload and play
+      video.preload = 'auto'
+      
+      const playVideo = async () => {
+        try {
+          await video.play()
+          setIsPlaying(true)
+        } catch (error) {
+          // Autoplay failed, wait for user interaction
+          console.log('Autoplay prevented, waiting for interaction')
+          setIsPlaying(false)
         }
-      }, 100)
+      }
 
+      // Small delay for smooth transition
+      const timer = setTimeout(playVideo, 50)
       return () => clearTimeout(timer)
     } else {
-      console.log('ReelPlayer: Pausing reel', reel.id)
       video.pause()
-      video.currentTime = 0 // Reset video to start
       setIsPlaying(false)
+      // Don't reset time to allow faster resume
     }
   }, [isActive, reel.id])
 
@@ -379,8 +359,28 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
         loop
         muted
         playsInline
+        preload="auto"
         onClick={handleVideoTap}
+        onLoadedData={() => setIsVideoLoading(false)}
+        onWaiting={() => setIsVideoLoading(true)}
+        onPlaying={() => setIsVideoLoading(false)}
+        onError={(e) => {
+          console.error('Video load error:', e)
+          setIsVideoLoading(false)
+          toast({
+            title: "Video unavailable",
+            description: "This video could not be loaded",
+            variant: "destructive"
+          })
+        }}
       />
+
+      {/* Loading indicator */}
+      {isVideoLoading && isActive && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-50">
+          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
 
       {/* Overlay layer for controls - prevents video from blocking */}
       <div className="absolute inset-0 pointer-events-none">
@@ -394,7 +394,7 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
               setShowMenu(!showMenu)
             }}
           >
-            <MoreHorizontal className="h-7 w-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
+            <MoreHorizontal className="h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
           </button>
 
           {/* Custom dropdown menu */}
@@ -465,7 +465,7 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
             <div className="flex-1 min-w-0 px-3 pb-3 pointer-events-auto">
               {/* User info row */}
               <div className="flex items-center gap-2 mb-1">
-                <Avatar className="h-9 w-9 border-2 border-white flex-shrink-0">
+                <Avatar className="h-11 w-11 border-2 border-white flex-shrink-0">
                   <AvatarImage src={reel.user.avatar || "/placeholder.svg"} alt={reel.user.username} />
                   <AvatarFallback>{reel.user.username.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
@@ -506,10 +506,10 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`text-white hover:bg-transparent w-11 h-11 p-0 ${isLiked ? "text-red-500" : ""}`}
+                  className={`text-white hover:bg-transparent w-12 h-12 p-0 ${isLiked ? "text-red-500" : ""}`}
                   onClick={handleLike}
                 >
-                  <Heart className={`h-7 w-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isLiked ? "fill-current" : ""}`} />
+                  <Heart className={`h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isLiked ? "fill-current" : ""}`} />
                 </Button>
                 <span className="text-white text-xs font-bold mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                   {likesCount > 999 ? `${(likesCount / 1000).toFixed(1)}k` : likesCount}
@@ -520,10 +520,10 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-transparent w-11 h-11 p-0"
+                  className="text-white hover:bg-transparent w-12 h-12 p-0"
                   onClick={handleCommentClick}
                 >
-                  <MessageCircle className="h-7 w-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
+                  <MessageCircle className="h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
                 </Button>
                 <span className="text-white text-xs font-bold mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                   {reel.comments > 999 ? `${(reel.comments / 1000).toFixed(1)}k` : reel.comments}
@@ -534,13 +534,13 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-transparent w-11 h-11 p-0"
+                  className="text-white hover:bg-transparent w-12 h-12 p-0"
                   onClick={() => {
                     setShowShareModal(true)
                     onShare?.(reel.id)
                   }}
                 >
-                  <Share className="h-7 w-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
+                  <Share className="h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" />
                 </Button>
                 <span className="text-white text-xs font-bold mt-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                   {reel.shares > 999 ? `${(reel.shares / 1000).toFixed(1)}k` : reel.shares}
@@ -551,10 +551,10 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-white hover:bg-transparent w-11 h-11 p-0"
+                  className="text-white hover:bg-transparent w-12 h-12 p-0"
                   onClick={handleBookmark}
                 >
-                  <Bookmark className={`h-7 w-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isBookmarked ? "fill-current text-yellow-400" : ""}`} />
+                  <Bookmark className={`h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isBookmarked ? "fill-current text-yellow-400" : ""}`} />
                 </Button>
               </motion.div>
             </div>
@@ -575,7 +575,7 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
                 comments.filter(c => !c.parent_comment_id).map((comment) => (
                   <div key={comment._id || comment.id} className="space-y-2">
                     <div className="flex gap-3 pb-3 border-b">
-                      <Avatar className="h-8 w-8">
+                      <Avatar className="h-10 w-10">
                         <AvatarImage src={comment.user_avatar || "/placeholder.svg"} alt={comment.username} />
                         <AvatarFallback>{comment.username?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
                       </Avatar>

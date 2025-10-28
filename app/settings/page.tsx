@@ -241,7 +241,7 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
@@ -260,7 +260,7 @@ export default function SettingsPage() {
                   return (
                     <div key={item.id} className="flex items-center justify-between py-3">
                       <div className="flex items-center gap-3">
-                        <Icon className="h-5 w-5 text-muted-foreground" />
+                        <Icon className="h-6 w-6 text-muted-foreground" />
                         <span className="font-medium">{item.label}</span>
                       </div>
                       <Switch
@@ -281,7 +281,7 @@ export default function SettingsPage() {
                     }`}
                     onClick={() => 'href' in item && item.href && router.push(item.href)}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-6 w-6" />
                     <span className="font-medium">{item.label}</span>
                   </Button>
                 )
@@ -298,7 +298,7 @@ export default function SettingsPage() {
           className="w-full gap-3 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground bg-transparent"
           onClick={handleLogout}
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-6 w-6" />
           Sign Out
         </Button>
 

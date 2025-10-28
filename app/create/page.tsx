@@ -63,7 +63,7 @@ export default function CreatePage() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-bold">Create</h1>
       </div>
@@ -95,8 +95,8 @@ export default function CreatePage() {
               >
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full ${option.color} flex items-center justify-center`}>
-                      <Icon className="h-6 w-6 text-white" />
+                    <div className={`w-14 h-14 rounded-full ${option.color} flex items-center justify-center`}>
+                      <Icon className="h-7 w-7 text-white" />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{option.title}</h3>

@@ -37,15 +37,15 @@ const fetchNotifications = async (): Promise<Notification[]> => {
       .split('; ')
       .find(row => row.startsWith('token=') || row.startsWith('client-token='))
       ?.split('=')[1];
-    
+
     if (!token) {
       throw new Error('Authentication required');
     }
-    
+
     const headers: HeadersInit = {
       'Authorization': `Bearer ${token}`
     };
-    
+
     const response = await fetch('/api/notifications', { headers });
     if (!response.ok) {
       if (response.status === 401) {
@@ -54,25 +54,66 @@ const fetchNotifications = async (): Promise<Notification[]> => {
       }
       throw new Error('Failed to fetch notifications');
     }
-    
+
     const data = await response.json();
-    return data.notifications.map((notification: any) => ({
-      id: notification.id,
-      type: notification.type,
-      user: {
-        id: notification.user.id,
-        username: notification.user.username,
-        avatar: notification.user.avatar_url || "/placeholder-user.jpg",
-        verified: notification.user.is_verified || false,
-      },
-      content: notification.content,
-      post: notification.post_id ? {
-        id: notification.post_id,
-        image: notification.post_image || "/placeholder.jpg",
-      } : undefined,
-      timestamp: notification.created_at,
-      isRead: notification.is_read,
-    }));
+    console.log('Notifications API response:', data);
+
+    if (!data.notifications || !Array.isArray(data.notifications)) {
+      console.log('No notifications array found');
+      return [];
+    }
+
+    console.log('Processing', data.notifications.length, 'notifications');
+
+    const processedNotifications: Notification[] = [];
+
+    for (let i = 0; i < data.notifications.length; i++) {
+      try {
+        const notification = data.notifications[i];
+
+        if (!notification) {
+          console.warn(`Notification at index ${i} is null/undefined`);
+          continue;
+        }
+
+        const userInfo = notification.user || notification.sender;
+
+        if (!userInfo) {
+          console.warn(`Notification at index ${i} missing user info:`, notification);
+          continue;
+        }
+
+        if (!userInfo.id && !userInfo._id) {
+          console.warn(`User info at index ${i} missing ID:`, userInfo);
+          continue;
+        }
+
+        const processedNotification: Notification = {
+          id: notification.id || notification._id || `notif-${Date.now()}-${i}`,
+          type: notification.type || 'like',
+          user: {
+            id: userInfo.id || userInfo._id || '',
+            username: userInfo.username || 'Unknown',
+            avatar: userInfo.avatar_url || userInfo.avatar || "/placeholder-user.jpg",
+            verified: userInfo.is_verified || userInfo.verified || false,
+          },
+          content: notification.content || notification.message || '',
+          post: notification.post_id ? {
+            id: notification.post_id,
+            image: notification.post_image || "/placeholder.jpg",
+          } : undefined,
+          timestamp: notification.created_at || new Date().toISOString(),
+          isRead: notification.is_read || false,
+        };
+
+        processedNotifications.push(processedNotification);
+      } catch (error) {
+        console.error(`Error processing notification at index ${i}:`, error, data.notifications[i]);
+      }
+    }
+
+    console.log('Successfully processed', processedNotifications.length, 'notifications');
+    return processedNotifications;
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return [];
@@ -82,17 +123,17 @@ const fetchNotifications = async (): Promise<Notification[]> => {
 const getNotificationIcon = (type: string) => {
   switch (type) {
     case "like":
-      return <Heart className="h-4 w-4 text-red-500" />
+      return <Heart className="h-5 w-5 text-red-500" />
     case "comment":
-      return <MessageCircle className="h-4 w-4 text-blue-500" />
+      return <MessageCircle className="h-5 w-5 text-blue-500" />
     case "follow":
     case "follow_request":
     case "follow_accept":
-      return <UserPlus className="h-4 w-4 text-green-500" />
+      return <UserPlus className="h-5 w-5 text-green-500" />
     case "share":
-      return <Share className="h-4 w-4 text-purple-500" />
+      return <Share className="h-5 w-5 text-purple-500" />
     default:
-      return <Heart className="h-4 w-4 text-muted-foreground" />
+      return <Heart className="h-5 w-5 text-muted-foreground" />
   }
 }
 
@@ -122,7 +163,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
-  
+
   useEffect(() => {
     const loadNotifications = async () => {
       setLoading(true)
@@ -130,24 +171,63 @@ export default function NotificationsPage() {
       setNotifications(data)
       setLoading(false)
     }
-    
+
     loadNotifications()
   }, [])
 
   const unreadCount = notifications.filter((n) => !n.isRead).length
 
-  const markAsRead = (notificationId: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)))
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+        ?.split('=')[1]
+
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ notificationId })
+      })
+
+      setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)))
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+  const markAllAsRead = async () => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+        ?.split('=')[1]
+
+      await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({}) // Empty body marks all as read
+      })
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+
+      // Force reload the page to update the header badge
+      window.location.reload()
+    } catch (error) {
+      console.error('Error marking all as read:', error)
+    }
   }
 
   const handleNotificationClick = (notification: Notification) => {
     // Mark as read
     markAsRead(notification.id)
-    
+
     // Navigate based on notification type
     if (notification.type === 'follow' || notification.type === 'follow_request' || notification.type === 'follow_accept') {
       // Go to the user's profile
@@ -173,8 +253,8 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link href="/" className="mr-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-10 w-10">
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <h1 className="text-2xl font-bold">Notifications</h1>
@@ -192,7 +272,7 @@ export default function NotificationsPage() {
           )}
           <Link href="/settings/notifications">
             <Button variant="ghost" size="sm">
-              <Settings className="h-4 w-4" />
+              <Settings className="h-5 w-5" />
             </Button>
           </Link>
         </div>
@@ -216,22 +296,21 @@ export default function NotificationsPage() {
                 transition={{ duration: 0.3, delay: index * 0.05 }}
               >
                 <Card
-                  className={`cursor-pointer hover:bg-accent/50 transition-colors ${
-                    !notification.isRead ? "bg-primary/5 border-primary/20" : ""
-                  }`}
+                  className={`cursor-pointer hover:bg-accent/50 transition-colors ${!notification.isRead ? "bg-primary/5 border-primary/20" : ""
+                    }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="relative">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="h-12 w-12">
                           <AvatarImage
                             src={notification.user.avatar || "/placeholder.svg"}
                             alt={notification.user.username}
                           />
                           <AvatarFallback>{notification.user.username.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-background rounded-full flex items-center justify-center border border-border">
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-background rounded-full flex items-center justify-center border border-border">
                           {getNotificationIcon(notification.type)}
                         </div>
                       </div>
@@ -255,7 +334,7 @@ export default function NotificationsPage() {
                           </div>
 
                           {notification.post?.image && (
-                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
+                            <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                               <img
                                 src={notification.post.image || "/placeholder.svg"}
                                 alt="Post"
@@ -274,10 +353,17 @@ export default function NotificationsPage() {
             ))}
           </div>
 
-          {filteredNotifications.length === 0 && (
+          {loading && (
             <div className="text-center py-12">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Heart className="h-8 w-8 text-muted-foreground" />
+              <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading notifications...</p>
+            </div>
+          )}
+
+          {!loading && filteredNotifications.length === 0 && (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Heart className="h-10 w-10 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">No notifications</h3>
               <p className="text-muted-foreground">

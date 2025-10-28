@@ -7,6 +7,12 @@ import {
 } from 'next-themes'
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <NextThemesProvider 
       {...props}
@@ -14,8 +20,9 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       defaultTheme="dark"
       enableSystem={false}
       disableTransitionOnChange
+      suppressHydrationWarning
     >
-      {children}
+      {mounted ? children : <div className="min-h-screen bg-background">{children}</div>}
     </NextThemesProvider>
   )
 }

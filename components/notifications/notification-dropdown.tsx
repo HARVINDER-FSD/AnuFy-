@@ -35,7 +35,6 @@ export function NotificationDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
-  const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
 
   const fetchNotifications = async () => {
@@ -45,19 +44,27 @@ export function NotificationDropdown() {
         .find(row => row.startsWith('token=') || row.startsWith('client-token='))
         ?.split('=')[1]
 
-      const response = await fetch('/api/notifications?limit=15', {
+      // Add cache-busting parameter to prevent stale data
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/notifications?limit=15&_t=${timestamp}`, {
         headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setNotifications(data.notifications || [])
-        setUnreadCount(data.unread_count || 0)
+      if (!response.ok) {
+        throw new Error('Failed to fetch notifications')
       }
+
+      const data = await response.json()
+      setNotifications(data.notifications || [])
+      setUnreadCount(data.unread_count || 0)
     } catch (error) {
       console.error('Error fetching notifications:', error)
+      setNotifications([])
+      setUnreadCount(0)
     } finally {
       setIsLoading(false)
     }
@@ -65,7 +72,7 @@ export function NotificationDropdown() {
 
   useEffect(() => {
     fetchNotifications()
-    
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
@@ -103,30 +110,34 @@ export function NotificationDropdown() {
   }
 
   const handleNotificationClick = (notification: Notification) => {
-    // Mark as read
+    // Mark as read first
     if (!notification.is_read) {
       markAsRead(notification.id)
     }
-
-    // Navigate based on notification type
+    
+    // Close dropdown
     setIsOpen(false)
     
-    if (notification.type === 'follow') {
-      router.push(`/profile/${notification.sender.username}`)
-    } else if (notification.content_type === 'post' && notification.content_id) {
-      router.push(`/feed`) // Could navigate to specific post
-    } else if (notification.content_type === 'reel' && notification.content_id) {
-      router.push(`/reels`)
-    } else if (notification.content_type === 'story' && notification.content_id) {
-      router.push(`/stories`)
-    } else {
-      router.push(`/profile/${notification.sender.username}`)
-    }
+    // Add small delay before navigation to ensure state updates
+    setTimeout(() => {
+      // Navigate based on notification type
+      if (notification.type === 'follow') {
+        router.push(`/profile/${notification.sender.username}`)
+      } else if (notification.content_type === 'post' && notification.content_id) {
+        router.push(`/feed?post=${notification.content_id}`) // Navigate to specific post
+      } else if (notification.content_type === 'reel' && notification.content_id) {
+        router.push(`/reels?id=${notification.content_id}`)
+      } else if (notification.content_type === 'story' && notification.content_id) {
+        router.push(`/stories?id=${notification.content_id}`)
+      } else {
+        router.push(`/notifications`) // Fallback to notifications page
+      }
+    }, 100)
   }
 
   const getNotificationText = (notification: Notification) => {
     const username = notification.sender.username
-    
+
     switch (notification.type) {
       case 'like':
         return `${username} liked your post`
@@ -152,7 +163,7 @@ export function NotificationDropdown() {
   }
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -177,7 +188,7 @@ export function NotificationDropdown() {
             </Button>
           )}
         </div>
-        
+
         <ScrollArea className="h-[400px]">
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">
@@ -200,15 +211,15 @@ export function NotificationDropdown() {
                   )}
                 >
                   <Avatar className="h-10 w-10 flex-shrink-0">
-                    <AvatarImage 
-                      src={notification.sender.avatar_url || "/placeholder.svg"} 
-                      alt={notification.sender.username} 
+                    <AvatarImage
+                      src={notification.sender.avatar_url || "/placeholder.svg"}
+                      alt={notification.sender.username}
                     />
                     <AvatarFallback>
                       {notification.sender.username.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  
+
                   <div className="flex-1 min-w-0">
                     <p className="text-sm line-clamp-2">
                       {getNotificationText(notification)}
@@ -217,7 +228,7 @@ export function NotificationDropdown() {
                       {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                     </p>
                   </div>
-                  
+
                   {!notification.is_read && (
                     <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-2" />
                   )}
@@ -226,14 +237,14 @@ export function NotificationDropdown() {
             </div>
           )}
         </ScrollArea>
-        
+
         {notifications.length > 0 && (
           <div className="p-3 border-t">
             <Button
               variant="ghost"
               className="w-full text-sm"
-              onClick={() => {
-                setIsOpen(false)
+              onClick={(e) => {
+                e.preventDefault()
                 router.push('/notifications')
               }}
             >

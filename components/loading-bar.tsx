@@ -11,7 +11,7 @@ function LoadingBarContent() {
 
   useEffect(() => {
     setLoading(true)
-    const timeout = setTimeout(() => setLoading(false), 500)
+    const timeout = setTimeout(() => setLoading(false), 300)
     return () => clearTimeout(timeout)
   }, [pathname, searchParams])
 
@@ -23,7 +23,7 @@ function LoadingBarContent() {
           initial={{ scaleX: 0, transformOrigin: "left" }}
           animate={{ scaleX: 1 }}
           exit={{ scaleX: 1, transformOrigin: "right", opacity: 0 }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
         />
       )}
     </AnimatePresence>

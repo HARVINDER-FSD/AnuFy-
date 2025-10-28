@@ -55,16 +55,9 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
+  // Don't show loading spinner, just return null to avoid double loading states
   if (!user) {
-    router.push('/login');
+    // Don't render anything while checking auth status
     return null;
   }
 
@@ -236,7 +229,7 @@ export default function ProfilePage() {
             Share profile
           </Button>
           <Button variant="outline" size="sm" onClick={() => router.push('/settings')}>
-            <Settings className="h-4 w-4" />
+            <Settings className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -251,19 +244,19 @@ export default function ProfilePage() {
       >
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="posts" className="gap-2" tabIndex={0}>
-            <Grid3X3 className="h-4 w-4" />
+            <Grid3X3 className="h-5 w-5" />
             Posts
           </TabsTrigger>
           <TabsTrigger value="reels" className="gap-2" tabIndex={0}>
-            <Film className="h-4 w-4" />
+            <Film className="h-5 w-5" />
             Reels
           </TabsTrigger>
           <TabsTrigger value="saved" className="gap-2" tabIndex={0}>
-            <Bookmark className="h-4 w-4" />
+            <Bookmark className="h-5 w-5" />
             Saved
           </TabsTrigger>
           <TabsTrigger value="tagged" className="gap-2" tabIndex={0}>
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="h-5 w-5" />
             Tagged
           </TabsTrigger>
         </TabsList>

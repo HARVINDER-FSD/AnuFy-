@@ -104,12 +104,8 @@ export async function GET(request: NextRequest) {
     cacheTime = Date.now();
     console.log(`Cached ${transformedStories.length} stories`);
     
-    // Return with cache headers for browser caching
-    return NextResponse.json(transformedStories, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-      }
-    });
+    // Return fresh data without caching
+    return NextResponse.json(transformedStories);
     
   } catch (error: any) {
     console.error('Error fetching stories:', error);

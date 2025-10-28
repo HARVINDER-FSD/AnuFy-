@@ -44,8 +44,8 @@ export default function FeedPage() {
       {/* Posts Feed */}
       <div className="px-4 space-y-4">
         {loading && posts.length === 0
-          ? // Loading skeletons
-          Array.from({ length: 3 }).map((_, i) => (
+          ? // Loading skeletons - reduced to 2 for faster perceived loading
+          Array.from({ length: 2 }).map((_, i) => (
             <div key={`skeleton-${i}`} className="space-y-4">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
@@ -55,10 +55,9 @@ export default function FeedPage() {
                 </div>
               </div>
               <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="aspect-square w-full" />
+              {/* Reduced skeleton height for faster rendering */}
+              <Skeleton className="aspect-video w-full" /> 
               <div className="flex gap-4">
-                <Skeleton className="h-8 w-16" />
                 <Skeleton className="h-8 w-16" />
                 <Skeleton className="h-8 w-16" />
               </div>
@@ -67,9 +66,9 @@ export default function FeedPage() {
           : posts.map((post, index) => (
             <motion.div
               key={post.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }} 
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
+              transition={{ duration: 0.2, delay: index * 0.05 }} // Faster animations
             >
               <PostCard
                 post={post}

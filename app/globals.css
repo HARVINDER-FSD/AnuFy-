@@ -517,3 +517,54 @@
 .animate-waveform-pulse {
   animation: waveform-pulse 0.8s ease-in-out infinite;
 }
+
+
+/* FORCE ICON SIZE UPDATES - Version 2.0 */
+/* This overrides any cached styles */
+@layer utilities {
+  /* Mobile Navigation Icons - FORCE h-6 w-6 */
+  nav [class*="lucide"] {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+  }
+  
+  /* Header Icons - FORCE h-7 w-7 */
+  header [class*="lucide"] {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+  }
+  
+  /* Post Card Action Icons - FORCE h-7 w-7 */
+  [class*="post"] button [class*="lucide"] {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+  }
+  
+  /* Reel Player Icons - FORCE h-8 w-8 */
+  [class*="reel"] button [class*="lucide"] {
+    width: 2rem !important;
+    height: 2rem !important;
+  }
+  
+  /* Force all Lucide icons to be at least 1.5rem */
+  .lucide {
+    min-width: 1.5rem !important;
+    min-height: 1.5rem !important;
+  }
+  
+  /* Specific overrides for common icons */
+  .lucide-heart,
+  .lucide-message-circle,
+  .lucide-share,
+  .lucide-bookmark,
+  .lucide-search,
+  .lucide-bell,
+  .lucide-film,
+  .lucide-sparkles,
+  .lucide-compass,
+  .lucide-zap,
+  .lucide-user-circle-2 {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+  }
+}
