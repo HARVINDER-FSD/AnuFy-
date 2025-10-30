@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
-import { MongoClient } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
+import { connectToDatabase } from '@/lib/mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
-const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
+const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -53,14 +53,12 @@ export async function POST(request: NextRequest) {
     const mediaFile = formData.get('media') as File | null;
     const location = formData.get('location') as string || '';
     
-    // Connect to database
-    const client = await MongoClient.connect(MONGODB_URI);
-    const db = client.db();
+    // Connect to database using shared connection
+    const { db } = await connectToDatabase();
     
     // Check if user exists
-    const user = await db.collection('users').findOne({ _id: new MongoClient.ObjectId(userId) });
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     if (!user) {
-      await client.close();
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
@@ -102,7 +100,7 @@ export async function POST(request: NextRequest) {
     
     // Create post document
     const post = {
-      user_id: new MongoClient.ObjectId(userId),
+      user_id: new ObjectId(userId),
       caption: content,
       media_urls: mediaUrl ? [mediaUrl] : [],
       media_type: mediaType || 'text',
@@ -119,11 +117,9 @@ export async function POST(request: NextRequest) {
     
     // Update user's post count
     await db.collection('users').updateOne(
-      { _id: new MongoClient.ObjectId(userId) },
+      { _id: new ObjectId(userId) },
       { $inc: { posts_count: 1 } }
     );
-    
-    await client.close();
     
     return NextResponse.json({
       message: 'Post created successfully',

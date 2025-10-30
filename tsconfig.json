@@ -29,6 +29,7 @@
     "services/**/*",
     "workers/**/*",
     "scripts/**/*",
-    "app_v0modified.tsx"
+    "app_v0modified.tsx",
+    "api-server/**/*"
   ]
 }

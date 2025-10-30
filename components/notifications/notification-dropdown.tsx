@@ -13,6 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import ProfileManager from '@/lib/profile-manager'
+import MasterAPI from '@/lib/master-api'
 
 interface Notification {
   id: string
@@ -35,30 +37,12 @@ export function NotificationDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
 
   const fetchNotifications = async () => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      // Add cache-busting parameter to prevent stale data
-      const timestamp = new Date().getTime();
-      const response = await fetch(`/api/notifications?limit=15&_t=${timestamp}`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch notifications')
-      }
-
-      const data = await response.json()
+      const data = await MasterAPI.Notification.getNotifications(15)
       setNotifications(data.notifications || [])
       setUnreadCount(data.unread_count || 0)
     } catch (error) {
@@ -75,24 +59,29 @@ export function NotificationDropdown() {
 
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000)
-    return () => clearInterval(interval)
+    
+    // Listen for profile updates and refresh notifications to get updated avatars
+    const handleProfileUpdate = () => {
+      console.log('[Notifications] Profile updated, refreshing notifications...')
+      fetchNotifications()
+    }
+    
+    // Listen for both profile-updated and user-data-refreshed events
+    window.addEventListener('profile-updated', handleProfileUpdate)
+    window.addEventListener('user-data-refreshed', handleProfileUpdate)
+    window.addEventListener('invalidate-cache', handleProfileUpdate)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('profile-updated', handleProfileUpdate)
+      window.removeEventListener('user-data-refreshed', handleProfileUpdate)
+      window.removeEventListener('invalidate-cache', handleProfileUpdate)
+    }
   }, [])
 
   const markAsRead = async (notificationId?: string) => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      await fetch('/api/notifications', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({ notificationId })
-      })
+      await MasterAPI.Notification.markAsRead(notificationId)
 
       // Update local state
       if (notificationId) {
@@ -163,7 +152,7 @@ export function NotificationDropdown() {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />

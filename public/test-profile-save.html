@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Profile Save</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Profile Save</h1>
+    
+    <div class="form-group">
+        <label>Full Name:</label>
+        <input type="text" id="name" value="Test User">
+    </div>
+    
+    <div class="form-group">
+        <label>Bio:</label>
+        <textarea id="bio" rows="3">This is my test bio</textarea>
+    </div>
+    
+    <div class="form-group">
+        <label>Website:</label>
+        <input type="text" id="website" value="https://example.com">
+    </div>
+    
+    <div class="form-group">
+        <label>Location:</label>
+        <input type="text" id="location" value="Test City">
+    </div>
+    
+    <button onclick="testSave()">Test Save Profile</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function testSave() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
+            
+            try {
+                // Get JWT token from cookie
+                const token = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('auth_token='))
+                    ?.split('=')[1];
+                
+                if (!token) {
+                    throw new Error('No auth token found. Please login first.');
+                }
+                
+                console.log('Token found:', token.substring(0, 20) + '...');
+                
+                // Prepare data
+                const updateData = {
+                    name: document.getElementById('name').value,
+                    bio: document.getElementById('bio').value,
+                    website: document.getElementById('website').value,
+                    location: document.getElementById('location').value,
+                    avatar: '' // Keep existing avatar
+                };
+                
+                console.log('Sending update data:', updateData);
+                
+                // Make API call
+                const response = await fetch('/api/users/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(errorText);
+                }
+                
+                const result = await response.json();
+                console.log('Success! Updated data:', result);
+                
+                resultDiv.className = 'success';
+                resultDiv.innerHTML = `
+                    <h3>✅ Profile Updated Successfully!</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+                resultDiv.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                `;
+                resultDiv.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

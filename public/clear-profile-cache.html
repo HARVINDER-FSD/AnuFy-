@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Profile Cache</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-weight: 600;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        .status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 10px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .steps {
+            text-align: left;
+            margin: 2rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .steps li {
+            margin: 0.5rem 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Clear Profile Cache</h1>
+        <p>Your profile picture has been updated! Click the button below to clear your browser cache and see the changes.</p>
+        
+        <div class="steps">
+            <strong>What this will do:</strong>
+            <ol>
+                <li>Clear all cached images</li>
+                <li>Clear localStorage data</li>
+                <li>Force reload your profile</li>
+            </ol>
+        </div>
+
+        <button onclick="clearCacheAndReload()">Clear Cache & Reload</button>
+        
+        <div class="status" id="status">
+            ✅ Cache cleared! Redirecting to your profile...
+        </div>
+    </div>
+
+    <script>
+        async function clearCacheAndReload() {
+            try {
+                // Clear service worker caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(
+                        cacheNames.map(cacheName => caches.delete(cacheName))
+                    );
+                }
+
+                // Clear localStorage profile data
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.includes('profile') || key.includes('avatar') || key.includes('user'))) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+
+                // Show success message
+                document.getElementById('status').classList.add('success');
+
+                // Wait a moment then redirect
+                setTimeout(() => {
+                    // Get username from cookie or localStorage
+                    const token = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+                        ?.split('=')[1];
+                    
+                    // Force hard reload to profile page
+                    window.location.href = '/profile?t=' + Date.now();
+                }, 1500);
+
+            } catch (error) {
+                console.error('Error clearing cache:', error);
+                alert('Cache cleared! Redirecting...');
+                window.location.href = '/profile?t=' + Date.now();
+            }
+        }
+    </script>
+</body>
+</html>

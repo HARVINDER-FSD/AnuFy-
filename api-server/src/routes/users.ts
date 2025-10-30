@@ -1,19 +1,34 @@
 import { Router, Request, Response } from 'express'
 import { MongoClient, ObjectId } from 'mongodb'
+import jwt from 'jsonwebtoken'
 
 const router = Router()
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia'
+const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192'
+
+// Simple auth middleware
+const authenticate = (req: any, res: Response, next: any) => {
+    try {
+        const authHeader = req.headers.authorization
+        const token = authHeader && authHeader.split(' ')[1]
+
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' })
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET) as any
+        req.userId = decoded.userId
+        next()
+    } catch (error) {
+        return res.status(403).json({ message: 'Invalid token' })
+    }
+}
 
 // GET /api/users/me - Get current user
-router.get('/me', async (req: Request, res: Response) => {
+router.get('/me', authenticate, async (req: any, res: Response) => {
     try {
-        // TODO: Add auth middleware to get userId from token
-        const userId = req.headers['x-user-id'] as string
-
-        if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' })
-        }
+        const userId = req.userId
 
         const client = await MongoClient.connect(MONGODB_URI)
         const db = client.db()
@@ -29,12 +44,14 @@ router.get('/me', async (req: Request, res: Response) => {
             id: user._id.toString(),
             username: user.username,
             email: user.email,
-            name: user.name || '',
+            name: user.full_name || user.name || '',
             bio: user.bio || '',
-            avatar: user.avatar || '/placeholder-user.jpg',
-            followers: user.followers || 0,
-            following: user.following || 0,
-            verified: user.verified || false
+            avatar: user.avatar_url || user.avatar || '/placeholder-user.jpg',
+            avatar_url: user.avatar_url || user.avatar || '/placeholder-user.jpg',
+            followers: user.followers_count || user.followers || 0,
+            following: user.following_count || user.following || 0,
+            verified: user.is_verified || user.verified || false,
+            posts_count: user.posts_count || 0
         })
     } catch (error: any) {
         console.error('Get user error:', error)
@@ -74,43 +91,145 @@ router.get('/:userId', async (req: Request, res: Response) => {
 })
 
 // PUT /api/users/profile - Update user profile
-router.put('/profile', async (req: Request, res: Response) => {
+router.put('/profile', authenticate, async (req: any, res: Response) => {
     try {
-        const userId = req.headers['x-user-id'] as string
+        const userId = req.userId
+
+        const { name, bio, avatar, website, location } = req.body
+
+        console.log('[Backend] Profile update request for userId:', userId);
+        console.log('[Backend] userId type:', typeof userId);
+        console.log('[Backend] userId length:', userId?.length);
+        console.log('[Backend] Received data:', { name, bio, avatar: avatar?.substring(0, 50) + '...', website, location });
 
         if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' })
+            console.error('[Backend] Missing userId in request');
+            return res.status(400).json({ message: 'Missing user ID' });
         }
-
-        const { name, bio, avatar } = req.body
 
         const client = await MongoClient.connect(MONGODB_URI)
         const db = client.db()
 
         const updateData: any = { updatedAt: new Date() }
-        if (name !== undefined) updateData.name = name
+        if (name !== undefined) {
+            updateData.name = name
+            updateData.full_name = name // Also update full_name for Atlas compatibility
+        }
         if (bio !== undefined) updateData.bio = bio
-        if (avatar !== undefined) updateData.avatar = avatar
+        if (avatar !== undefined) {
+            updateData.avatar = avatar
+            updateData.avatar_url = avatar // Also update avatar_url for Atlas compatibility
+        }
+        if (website !== undefined) updateData.website = website
+        if (location !== undefined) updateData.location = location
 
-        await db.collection('users').updateOne(
-            { _id: new ObjectId(userId) },
-            { $set: updateData }
-        )
+        console.log('[Backend] Updating with data:', { ...updateData, avatar: updateData.avatar?.substring(0, 50) + '...' });
 
-        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) })
-        await client.close()
+        // Try to find user first to determine ID format
+        let user;
+        let idQuery: any;
+        
+        try {
+            user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+            idQuery = { _id: new ObjectId(userId) };
+        } catch (err) {
+            console.log('[Backend] Error with ObjectId, trying string ID...');
+            user = await db.collection('users').findOne({ _id: userId });
+            idQuery = { _id: userId };
+        }
 
-        return res.json({
-            id: user?._id.toString(),
-            username: user?.username,
-            email: user?.email,
-            name: user?.name || '',
-            bio: user?.bio || '',
-            avatar: user?.avatar || '/placeholder-user.jpg',
-            followers: user?.followers || 0,
-            following: user?.following || 0,
-            verified: user?.verified || false
-        })
+        // If still not found, try finding by username from JWT
+        if (!user) {
+            console.log('[Backend] Trying to find user by username from JWT...');
+            const jwt = require('jsonwebtoken');
+            const token = req.headers.authorization?.split(' ')[1];
+            try {
+                const decoded: any = jwt.decode(token);
+                console.log('[Backend] Decoded JWT username:', decoded?.username);
+
+                if (decoded?.username) {
+                    user = await db.collection('users').findOne({ username: decoded.username });
+                    if (user) {
+                        console.log('[Backend] Found user by username! User _id:', user._id, 'Type:', typeof user._id);
+                        idQuery = { _id: user._id };
+                    }
+                }
+            } catch (err) {
+                console.error('[Backend] Error decoding JWT:', err);
+            }
+        }
+
+        if (!user) {
+            console.error('[Backend] User not found with either ObjectId or string ID');
+            await client.close()
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        console.log('[Backend] Found user, updating with query:', idQuery);
+
+        try {
+            const result = await db.collection('users').updateOne(
+                idQuery,
+                { $set: updateData }
+            )
+
+            console.log('[Backend] Update result:', result.modifiedCount, 'documents modified');
+
+            // Fetch updated user
+            user = await db.collection('users').findOne(idQuery)
+
+            if (!user) {
+                console.error('[Backend] User not found after update');
+                await client.close()
+                return res.status(500).json({ message: 'Failed to retrieve updated user' })
+            }
+
+            console.log('[Backend] Updated user data:', {
+                username: user?.username,
+                name: user?.name,
+                full_name: user?.full_name,
+                bio: user?.bio,
+                avatar: user?.avatar?.substring(0, 50),
+                avatar_url: user?.avatar_url?.substring(0, 50),
+                website: user?.website,
+                location: user?.location
+            });
+
+            await client.close()
+
+            // Add timestamp to avatar URLs for cache busting
+            const timestamp = Date.now();
+            const avatarUrl = user?.avatar_url || user?.avatar || '/placeholder-user.jpg';
+            const avatarWithTimestamp = avatarUrl !== '/placeholder-user.jpg' 
+                ? (avatarUrl.includes('?') ? `${avatarUrl}&_t=${timestamp}` : `${avatarUrl}?_t=${timestamp}`)
+                : avatarUrl;
+
+            const responseData = {
+                id: user?._id.toString(),
+                username: user?.username,
+                email: user?.email,
+                name: user?.name || user?.full_name || '',
+                bio: user?.bio || '',
+                avatar: avatarWithTimestamp,
+                avatar_url: avatarWithTimestamp,
+                website: user?.website || '',
+                location: user?.location || '',
+                followers: user?.followers_count || user?.followers || 0,
+                following: user?.following_count || user?.following || 0,
+                verified: user?.is_verified || user?.verified || false,
+                posts_count: user?.posts_count || 0
+            }
+            
+            console.log('[Backend] ✅ Sending success response:', responseData);
+            return res.json(responseData);
+        } catch (updateError) {
+            console.error('[Backend] Error updating user:', updateError);
+            await client.close()
+            return res.status(500).json({ message: 'Failed to update profile' })
+        }
+
+        console.log('[Backend] ✅ Sending success response:', responseData);
+        return res.json(responseData)
     } catch (error: any) {
         console.error('Update profile error:', error)
         return res.status(500).json({ message: error.message || 'Failed to update profile' })
@@ -152,14 +271,10 @@ router.get('/search', async (req: Request, res: Response) => {
 })
 
 // POST /api/users/:userId/follow - Follow user
-router.post('/:userId/follow', async (req: Request, res: Response) => {
+router.post('/:userId/follow', authenticate, async (req: any, res: Response) => {
     try {
-        const currentUserId = req.headers['x-user-id'] as string
+        const currentUserId = req.userId
         const { userId } = req.params
-
-        if (!currentUserId) {
-            return res.status(401).json({ message: 'Unauthorized' })
-        }
 
         if (currentUserId === userId) {
             return res.status(400).json({ message: 'Cannot follow yourself' })
@@ -195,14 +310,10 @@ router.post('/:userId/follow', async (req: Request, res: Response) => {
 })
 
 // DELETE /api/users/:userId/follow - Unfollow user
-router.delete('/:userId/follow', async (req: Request, res: Response) => {
+router.delete('/:userId/follow', authenticate, async (req: any, res: Response) => {
     try {
-        const currentUserId = req.headers['x-user-id'] as string
+        const currentUserId = req.userId
         const { userId } = req.params
-
-        if (!currentUserId) {
-            return res.status(401).json({ message: 'Unauthorized' })
-        }
 
         const client = await MongoClient.connect(MONGODB_URI)
         const db = client.db()
@@ -297,13 +408,9 @@ router.get('/:userId/following', async (req: Request, res: Response) => {
 })
 
 // DELETE /api/users/delete - Delete user account
-router.delete('/delete', async (req: Request, res: Response) => {
+router.delete('/delete', authenticate, async (req: any, res: Response) => {
     try {
-        const userId = req.headers['x-user-id'] as string
-
-        if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' })
-        }
+        const userId = req.userId
 
         const client = await MongoClient.connect(MONGODB_URI)
         const db = client.db()
@@ -332,13 +439,9 @@ router.delete('/delete', async (req: Request, res: Response) => {
 })
 
 // GET /api/users/blocked - Get blocked users
-router.get('/blocked', async (req: Request, res: Response) => {
+router.get('/blocked', authenticate, async (req: any, res: Response) => {
     try {
-        const userId = req.headers['x-user-id'] as string
-
-        if (!userId) {
-            return res.status(401).json({ message: 'Unauthorized' })
-        }
+        const userId = req.userId
 
         const client = await MongoClient.connect(MONGODB_URI)
         const db = client.db()

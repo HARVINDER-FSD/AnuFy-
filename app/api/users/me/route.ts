@@ -1,30 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MongoClient, ObjectId } from 'mongodb';
-import jwt from 'jsonwebtoken';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
-const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    // Get token from Authorization header
+    // Get token from Authorization header or cookies
     const authHeader = req.headers.get('authorization');
+    let token = null;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else {
+      token = req.cookies.get('token')?.value || req.cookies.get('client-token')?.value;
+    }
+    
+    if (!token) {
       return NextResponse.json(
         { message: "No token provided" },
         { status: 401 }
       );
     }
     
-    const token = authHeader.split(' ')[1];
+    // Try API server with timeout
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`${API_URL}/api/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
+        return NextResponse.json(data);
+      }
+    } catch (fetchError: any) {
+      // Only log if it's not a timeout
+      if (fetchError.name !== 'AbortError') {
+        console.log("API server error:", fetchError.message);
+      }
+    }
     
-    // Verify token
+    // Fallback: Use JWT token data directly
+    const jwt = await import('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192';
+    
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    
-    console.log("Decoded token:", decoded);
     
     if (!decoded || !decoded.userId) {
       return NextResponse.json(
@@ -33,57 +62,21 @@ export async function GET(req: NextRequest) {
       );
     }
     
-    // Connect to MongoDB and get user data
-    const client = await MongoClient.connect(MONGODB_URI);
-    const db = client.db();
-    const usersCollection = db.collection('users');
-    
-    console.log("Looking for user with ID:", decoded.userId);
-    
-    // Try to find user by ObjectId first
-    let user = null;
-    try {
-      user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
-    } catch (objectIdError) {
-      console.log("ObjectId conversion failed, trying string match:", objectIdError);
-      // If ObjectId conversion fails, try finding by string ID or other fields
-      user = await usersCollection.findOne({ 
-        $or: [
-          { _id: decoded.userId },
-          { username: decoded.userId },
-          { email: decoded.userId }
-        ]
-      });
-    }
-    
-    console.log("Found user:", user ? "Yes" : "No");
-    
-    if (!user) {
-      await client.close();
-      return NextResponse.json(
-        { message: "User not found" },
-        { status: 404 }
-      );
-    }
-    
-    await client.close();
-    
-    // Return user data without password
-    const { password, ...userData } = user;
-    
+    // Return user data from token
     return NextResponse.json({
-      id: user._id.toString(),
-      username: user.username,
-      email: user.email,
-      name: user.full_name || user.name || user.username,
-      bio: user.bio || "",
-      avatar: user.avatar_url || user.avatar || "/placeholder-user.jpg",
-      avatar_url: user.avatar_url || user.avatar || "/placeholder-user.jpg",
-      followers: user.followers_count || user.followers || 0,
-      following: user.following_count || user.following || 0,
-      verified: user.is_verified || user.verified || false,
-      posts_count: user.posts_count || 0
+      id: decoded.userId,
+      username: decoded.username || '',
+      email: decoded.email || '',
+      name: decoded.name || decoded.username || '',
+      bio: decoded.bio || '',
+      avatar: decoded.avatar || '/placeholder-user.jpg',
+      avatar_url: decoded.avatar || '/placeholder-user.jpg',
+      followers: decoded.followers || 0,
+      following: decoded.following || 0,
+      verified: decoded.verified || false,
+      posts_count: decoded.posts_count || 0
     });
+    
   } catch (error: any) {
     console.error("Get user profile error:", error);
     return NextResponse.json(

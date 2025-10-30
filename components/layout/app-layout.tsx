@@ -10,8 +10,8 @@ import { MobileNav } from "./mobile-nav";
 
 // Pages where auth is required and where nav should be hidden
 const AUTH_PAGES = ["/login", "/register"];
-const HIDE_NAV_PAGES = ["/login", "/register", "/stories/create", "/stories", "/reels"];
-const HIDE_HEADER_PAGES = ["/login", "/register", "/reels", "/stories/create", "/stories", "/profile"];
+const HIDE_NAV_PAGES = ["/login", "/register", "/stories/create", "/stories", "/reels", "/create"];
+const HIDE_HEADER_PAGES = ["/login", "/register", "/reels", "/stories/create", "/stories", "/profile", "/create"];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();

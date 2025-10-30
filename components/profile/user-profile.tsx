@@ -29,7 +29,49 @@ interface UserProfileProps {
 export function UserProfile({ user, isOwnProfile = false }: UserProfileProps) {
   const [isFollowing, setIsFollowing] = useState(user.isFollowing || false)
   const [followersCount, setFollowersCount] = useState(user.followers)
+  const [profileData, setProfileData] = useState(user)
   const { toast } = useToast()
+  
+  // Listen for profile updates
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      console.log('[UserProfile] Profile update detected, refreshing data...');
+      // Add timestamp to force cache invalidation
+      const timestamp = new Date().getTime();
+      
+      if (isOwnProfile && profileData.username) {
+        fetch(`/api/users/${profileData.username}?_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log('[UserProfile] Fresh profile data loaded:', data);
+          setProfileData({
+            ...profileData,
+            ...data,
+            avatar: data.avatar_url || data.avatar || profileData.avatar
+          });
+        })
+        .catch(error => {
+          console.error('[UserProfile] Error refreshing profile data:', error);
+        });
+      }
+    };
+    
+    window.addEventListener('profile-updated', handleProfileUpdate);
+    window.addEventListener('user-data-refreshed', handleProfileUpdate);
+    window.addEventListener('invalidate-cache', handleProfileUpdate);
+    
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate);
+      window.removeEventListener('user-data-refreshed', handleProfileUpdate);
+      window.removeEventListener('invalidate-cache', handleProfileUpdate);
+    };
+  }, [isOwnProfile, profileData.username]);
 
   const handleFollow = async () => {
     try {
@@ -74,9 +116,12 @@ export function UserProfile({ user, isOwnProfile = false }: UserProfileProps) {
         {/* Profile Header */}
         <div className="text-center">
           <Avatar className="h-24 w-24 mx-auto mb-4">
-            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.username} />
+            <AvatarImage 
+              src={`${profileData.avatar || "/placeholder.svg"}${profileData.avatar && !profileData.avatar.includes('?') ? `?_t=${Date.now()}` : profileData.avatar ? `&_t=${Date.now()}` : ''}`} 
+              alt={profileData.username} 
+            />
             <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-              {user.username.charAt(0).toUpperCase()}
+              {profileData.username.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
 

@@ -1,7 +1,15 @@
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv'
+import path from 'path'
+// When running with tsx, __dirname is api-server/src, so go up one level to api-server
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
+console.log('Loaded .env from:', path.resolve(__dirname, '..', '.env'))
+console.log('MONGODB_URI exists:', !!process.env.MONGODB_URI)
+console.log('MONGODB_URI value:', process.env.MONGODB_URI?.substring(0, 50))
+
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-import dotenv from 'dotenv'
 import authRoutes from './routes/auth'
 import usersRoutes from './routes/users'
 import postsRoutes from './routes/posts'
@@ -16,9 +24,6 @@ import reportsRoutes from './routes/reports'
 import searchRoutes from './routes/search'
 import analyticsRoutes from './routes/analytics'
 import bookmarksRoutes from './routes/bookmarks'
-
-// Load environment variables
-dotenv.config({ path: '../.env' })
 
 const app = express()
 const PORT = process.env.PORT || 8000

@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ShareModal } from "@/components/share/share-modal"
 import { ReportModal } from "@/components/moderation/report-modal"
+import { ProfileAvatar } from "@/components/profile/profile-avatar"
+import MasterAPI from "@/lib/master-api"
 
 // Global lock to prevent multiple simultaneous like requests
 const globalLikeLocks = new Map<string, boolean>()
@@ -73,59 +75,29 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
   const isOwner = currentUserId === post.user.id || post.isOwner
 
   const handleLike = async () => {
-    // CRITICAL: Check global lock FIRST before any logging
-    // This prevents Fast Refresh from triggering duplicate requests
-    if (globalLikeLocks.get(post.id)) {
-      return // Silently block if already processing
-    }
-
-    const clickTime = new Date().toISOString()
-    const clickId = Math.random().toString(36).substring(7)
-
-    console.log(`[PostCard ${clickId}] handleLike called at ${clickTime}`)
-    console.log(`[PostCard ${clickId}] Post ID:`, post.id)
-
-    // Check ALL locks and disabled state
-    if (isLikingRef.current || isLikeDisabled) {
-      console.log(`[PostCard ${clickId}] BLOCKED - lock is active or button disabled`)
+    if (globalLikeLocks.get(post.id) || isLikingRef.current || isLikeDisabled) {
       return
     }
 
-    // Acquire ALL locks and disable button
     isLikingRef.current = true
     globalLikeLocks.set(post.id, true)
     setIsLikeDisabled(true)
-    console.log(`[PostCard ${clickId}] All locks acquired, button disabled, proceeding with API call`)
 
     const previousLiked = isLiked
     const previousCount = likesCount
 
     try {
-      // Optimistic update
       setIsLiked(!isLiked)
       setLikesCount(prev => isLiked ? prev - 1 : prev + 1)
 
-      // API call
-      const response = await fetch(`/api/posts/${post.id}/like`, {
-        method: 'POST',
-        credentials: 'include',
-      })
+      const data = await MasterAPI.Post.likePost(post.id)
 
-      if (!response.ok) throw new Error('Failed')
-
-      const data = await response.json()
-
-      console.log('[PostCard] API response:', data)
-      console.log('[PostCard] Setting isLiked to:', data.liked)
-
-      // Update with server data
       setIsLiked(data.liked)
       setLikesCount(data.likeCount)
       setLikedByUsers(data.likedBy || [])
 
       onLike?.(post.id)
     } catch (error) {
-      // Revert on error
       setIsLiked(previousLiked)
       setLikesCount(previousCount)
       toast({
@@ -134,12 +106,10 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
         variant: "destructive"
       })
     } finally {
-      // Release locks and re-enable button after delay (10 seconds to absolutely prevent double-clicks)
       setTimeout(() => {
         isLikingRef.current = false
         globalLikeLocks.delete(post.id)
         setIsLikeDisabled(false)
-        console.log(`[PostCard] All locks released and button re-enabled for post ${post.id}`)
       }, 10000)
     }
   }
@@ -149,13 +119,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
       const newBookmarkedState = !isBookmarked
       setIsBookmarked(newBookmarkedState)
 
-      // Make API call to bookmark/unbookmark post
-      const response = await fetch(`/api/posts/${post.id}/bookmark`, {
-        method: 'POST',
-        credentials: 'include', // Include cookies for authentication
-      });
-
-      if (!response.ok) throw new Error('Failed to update bookmark status');
+      await MasterAPI.call(`/api/posts/${post.id}/bookmark`, { method: 'POST' })
 
       onBookmark?.(post.id)
 
@@ -181,14 +145,8 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
   const fetchComments = async () => {
     setIsLoadingComments(true)
     try {
-      const response = await fetch(`/api/posts/${post.id}/comment`, {
-        credentials: 'include', // Include cookies for authentication
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch comments');
-
-      const data = await response.json();
-      setComments(data.comments);
+      const data = await MasterAPI.Post.getComments(post.id)
+      setComments(data.comments)
     } catch (error) {
       toast({
         title: "Error",
@@ -210,22 +168,10 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
     if (!commentText.trim()) return;
 
     try {
-      const response = await fetch(`/api/posts/${post.id}/comment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ content: commentText }),
-        credentials: 'include', // Include cookies for authentication
-      });
+      const data = await MasterAPI.Post.commentPost(post.id, commentText)
 
-      if (!response.ok) throw new Error('Failed to add comment');
-
-      const data = await response.json();
-
-      // Add new comment to the list
-      setComments([data.comment, ...comments]);
-      setCommentText("");
+      setComments([data.comment, ...comments])
+      setCommentText("")
 
       toast({
         title: "Comment added!",
@@ -256,28 +202,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
 
   const handleDelete = async () => {
     try {
-      const token = localStorage.getItem('token') ||
-        document.cookie.split('; ').find(row => row.startsWith('client-token='))?.split('=')[1];
-
-      const response = await fetch(`/api/posts/${post.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          toast({
-            title: "Permission denied",
-            description: "You can only delete your own posts.",
-            variant: "destructive"
-          })
-          return
-        }
-        throw new Error('Failed to delete post')
-      }
+      await MasterAPI.Post.deletePost(post.id)
 
       toast({
         title: "Post deleted",
@@ -285,12 +210,20 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
       })
 
       onDelete?.(post.id)
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete post.",
-        variant: "destructive"
-      })
+    } catch (error: any) {
+      if (error.message.includes('403')) {
+        toast({
+          title: "Permission denied",
+          description: "You can only delete your own posts.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to delete post.",
+          variant: "destructive"
+        })
+      }
     } finally {
       setShowDeleteDialog(false)
     }
@@ -302,10 +235,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
         {/* Post Header */}
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={post.user.avatar || "/placeholder.svg"} alt={post.user.username} />
-              <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
+            <ProfileAvatar userId={post.user.id} username={post.user.username} avatar={post.user.avatar} />
             <div>
               <div className="flex items-center gap-1">
                 <span className="font-semibold text-sm">{post.user.username}</span>
@@ -376,7 +306,7 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
 
         {/* Post Media */}
         {post.image && (
-          <div className="aspect-square bg-muted relative">
+          <div className="aspect-video bg-muted">
             <img src={post.image || "/placeholder.svg"} alt="Post content" className="w-full h-full object-contain" loading="lazy" decoding="async" />
           </div>
         )}

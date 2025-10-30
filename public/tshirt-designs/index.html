@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T-Shirt Design Gallery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            font-size: 20px;
+            margin-bottom: 50px;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        
+        .design-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .design-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        
+        .design-preview {
+            width: 100%;
+            height: 400px;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .design-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .design-info {
+            padding: 25px;
+        }
+        
+        .design-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        
+        .design-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .design-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .tag {
+            background: #f0f0f0;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+        
+        .download-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .instructions {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .instructions h2 {
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 2;
+            color: #666;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+        }
+        
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .color-swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 T-Shirt Design Gallery</h1>
+        <p class="subtitle">Professional designs for your social media app</p>
+        
+        <div class="gallery">
+            <!-- Design 1 -->
+            <div class="design-card">
+                <div class="design-preview">
+                    <img src="design-1-minimalist.svg" alt="Minimalist Design">
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Minimalist</h3>
+                    <p class="design-description">
+                        Clean, professional design with your app logo and tagline. Perfect for everyday wear.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Professional</span>
+                        <span class="tag">Clean</span>
+                        <span class="tag">Versatile</span>
+                    </div>
+                    <div class="color-palette">
+                        <div class="color-swatch" style="background: #1a1a1a;"></div>
+                        <div class="color-swatch" style="background: #6366f1;"></div>
+                        <div class="color-swatch" style="background: #ffffff;"></div>
+                    </div>
+                    <br><br>
+                    <a href="design-1-minimalist.svg" download class="download-btn">Download SVG</a>
+                </div>
+            </div>
+            
+            <!-- Design 2 -->
+            <div class="design-card">
+                <div class="design-preview">
+                    <img src="design-2-developer.svg" alt="Developer Design">
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Developer</h3>
+                    <p class="design-description">
+                        Code-themed design that showcases your tech roots. Perfect for developers and tech enthusiasts.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Tech</span>
+                        <span class="tag">Code</span>
+                        <span class="tag">Geek Culture</span>
+                    </div>
+                    <div class="color-palette">
+                        <div class="color-swatch" style="background: #000000;"></div>
+                        <div class="color-swatch" style="background: #10b981;"></div>
+                        <div class="color-swatch" style="background: #22d3ee;"></div>
+                    </div>
+                    <br><br>
+                    <a href="design-2-developer.svg" download class="download-btn">Download SVG</a>
+                </div>
+            </div>
+            
+            <!-- Design 3 -->
+            <div class="design-card">
+                <div class="design-preview">
+                    <img src="design-3-gradient.svg" alt="Gradient Design">
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Gradient</h3>
+                    <p class="design-description">
+                        Modern gradient design with feature icons. Eye-catching and vibrant, perfect for social media.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Modern</span>
+                        <span class="tag">Colorful</span>
+                        <span class="tag">Instagram-style</span>
+                    </div>
+                    <div class="color-palette">
+                        <div class="color-swatch" style="background: #8b5cf6;"></div>
+                        <div class="color-swatch" style="background: #ec4899;"></div>
+                        <div class="color-swatch" style="background: #f59e0b;"></div>
+                    </div>
+                    <br><br>
+                    <a href="design-3-gradient.svg" download class="download-btn">Download SVG</a>
+                </div>
+            </div>
+            
+            <!-- Design 4 -->
+            <div class="design-card">
+                <div class="design-preview">
+                    <img src="design-4-features.svg" alt="Features Design">
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Feature Showcase</h3>
+                    <p class="design-description">
+                        Highlights your app's key features with checkmarks. Great for marketing and brand awareness.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Marketing</span>
+                        <span class="tag">Features</span>
+                        <span class="tag">Bold</span>
+                    </div>
+                    <div class="color-palette">
+                        <div class="color-swatch" style="background: #0f172a;"></div>
+                        <div class="color-swatch" style="background: #10b981;"></div>
+                        <div class="color-swatch" style="background: #6366f1;"></div>
+                    </div>
+                    <br><br>
+                    <a href="design-4-features.svg" download class="download-btn">Download SVG</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h2>📋 How to Use These Designs</h2>
+            <ol>
+                <li><strong>Download</strong> the SVG file by clicking the download button</li>
+                <li><strong>Customize</strong> the text "YOUR APP" with your actual app name</li>
+                <li><strong>Edit</strong> colors if needed using any vector editor (Figma, Adobe Illustrator, Inkscape)</li>
+                <li><strong>Export</strong> as high-resolution PNG (300 DPI) for printing</li>
+                <li><strong>Upload</strong> to your preferred printing service (Printful, CustomInk, etc.)</li>
+            </ol>
+            
+            <h2 style="margin-top: 40px;">🎨 Customization Tips</h2>
+            <ul style="margin-left: 20px; line-height: 2; color: #666;">
+                <li>Replace "YOUR APP" with your actual app name</li>
+                <li>Adjust colors to match your brand</li>
+                <li>Add your logo or icon</li>
+                <li>Modify taglines to fit your message</li>
+                <li>Scale designs to fit different t-shirt sizes</li>
+            </ul>
+            
+            <h2 style="margin-top: 40px;">🖨️ Printing Recommendations</h2>
+            <ul style="margin-left: 20px; line-height: 2; color: #666;">
+                <li><strong>Method:</strong> Screen printing or DTG (Direct to Garment)</li>
+                <li><strong>Material:</strong> 100% cotton or cotton blend</li>
+                <li><strong>Colors:</strong> Black, Navy, White, or custom</li>
+                <li><strong>Sizes:</strong> S, M, L, XL, XXL</li>
+                <li><strong>Quality:</strong> 300 DPI minimum for printing</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

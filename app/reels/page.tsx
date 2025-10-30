@@ -5,8 +5,9 @@ import { ReelPlayer } from "@/components/reels/reel-player"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-provider"
+import MasterAPI from "@/lib/master-api"
 
-// Mock reels data
+// Mock reels data - using sample video URLs
 const mockReels = [
   {
     id: "1",
@@ -16,7 +17,7 @@ const mockReels = [
       avatar: "/placeholder-user.jpg",
       verified: true,
     },
-    video: "/placeholder-video.mp4",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
     caption: "Check out this amazing sunset! Nature is incredible 🌅 #sunset #nature #beautiful",
     music: {
       title: "Chill Vibes",
@@ -36,7 +37,7 @@ const mockReels = [
       avatar: "/placeholder-user.jpg",
       verified: false,
     },
-    video: "/placeholder-video.mp4",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
     caption: "Quick coding tip that will save you hours! Follow for more tech content 💻 #coding #programming #tech",
     music: {
       title: "Focus Flow",
@@ -56,7 +57,7 @@ const mockReels = [
       avatar: "/placeholder-user.jpg",
       verified: true,
     },
-    video: "/placeholder-video.mp4",
+    video: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     caption: "Morning workout routine to start your day right! 💪 Who's joining me? #fitness #workout #motivation",
     music: {
       title: "Pump It Up",
@@ -73,55 +74,19 @@ const mockReels = [
 // Function to fetch reels from API
 const fetchReels = async () => {
   try {
-    // Get token from cookies
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-      ?.split('=')[1]
-
-    const headers: HeadersInit = {}
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-
-    const response = await fetch('/api/reels', { headers })
-    if (!response.ok) {
-      throw new Error('Failed to fetch reels')
-    }
-    const data = await response.json()
-
-    // Get current user ID from token for isOwner check
-    let currentUserId = null
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        currentUserId = payload.userId
-      } catch (e) {
-        // Token parsing failed, continue without user ID
+    const response = await MasterAPI.Reel.getReels()
+    // Handle both { success: true, data: [...] } and direct array formats
+    if (response && typeof response === 'object') {
+      if (Array.isArray(response)) {
+        return response
+      } else if (response.data && Array.isArray(response.data)) {
+        return response.data
+      } else if (response.success && response.data && Array.isArray(response.data)) {
+        return response.data
       }
     }
-
-    // Transform API data to match ReelPlayer component format
-    const transformedReels = (data.reels || []).map((reel: any) => ({
-      id: reel.id,
-      user: {
-        id: reel.user.id,
-        username: reel.user.username,
-        avatar: reel.user.avatar_url || '/placeholder-user.jpg',
-        verified: reel.user.is_verified || false,
-      },
-      video: reel.video_url,
-      caption: reel.caption || '',
-      music: reel.music || null,
-      likes: reel.likes_count || 0,
-      comments: reel.comments_count || 0,
-      shares: reel.shares_count || 0,
-      liked: false,
-      bookmarked: false,
-      isOwner: currentUserId === reel.user.id,
-    }))
-
-    return transformedReels
+    console.warn('Unexpected reels response format:', response)
+    return []
   } catch (error) {
     console.error('Error fetching reels:', error)
     return []
@@ -146,9 +111,9 @@ export default function ReelsPage() {
       try {
         setLoading(true)
 
-        // Add timeout to prevent infinite loading
+        // Add timeout to prevent infinite loading (30 seconds for Atlas first connection)
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
+          setTimeout(() => reject(new Error('Request timeout')), 30000)
         )
 
         const fetchedReels = await Promise.race([
@@ -156,23 +121,27 @@ export default function ReelsPage() {
           timeoutPromise
         ]) as any[]
 
+        console.log('Fetched reels count:', fetchedReels?.length)
+
         if (fetchedReels && fetchedReels.length > 0) {
+          console.log('Setting reels from API:', fetchedReels)
           setReels(fetchedReels)
           setHasMore(fetchedReels.length >= 10)
         } else {
-          // Use mock data if API fails
-          console.log('No reels from API, using mock data')
-          setReels(mockReels)
+          // No reels in database
+          console.log('No reels found in database')
+          setReels([])
           setHasMore(false)
         }
       } catch (error) {
         console.error("Error loading reels:", error)
-        // Use mock data on error
-        setReels(mockReels)
+        // Show error instead of demo data
+        setReels([])
         setHasMore(false)
         toast({
-          title: "Using demo content",
-          description: "Showing sample reels. API connection failed.",
+          title: "Error loading reels",
+          description: error instanceof Error ? error.message : "Failed to load reels from database",
+          variant: "destructive"
         })
       } finally {
         setLoading(false)
@@ -251,7 +220,6 @@ export default function ReelsPage() {
   }, [currentIndex, reels.length])
 
   const handleLike = async (reelId: string) => {
-    // Find the current reel
     const currentReel = reels.find((r) => r.id === reelId)
     if (!currentReel) return
 
@@ -269,24 +237,7 @@ export default function ReelsPage() {
     )
 
     try {
-      // Make API call
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/reels/${reelId}/like`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update like status')
-      }
-
+      await MasterAPI.Reel.likeReel(reelId)
       toast({
         title: currentReel.liked ? "Removed like" : "Liked!",
         description: "Your preference has been saved",

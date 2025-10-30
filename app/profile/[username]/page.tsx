@@ -120,10 +120,12 @@ export default function UserProfilePage() {
 
         console.log("Token found:", token ? "Yes" : "No");
 
-        const response = await fetch(`/api/users/${username}`, {
-          headers: token ? {
-            'Authorization': `Bearer ${token}`
-          } : {}
+        const response = await fetch(`/api/users/${username}?t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
         })
 
         console.log("Response status:", response.status);

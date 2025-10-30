@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PostCard } from "@/components/posts/post-card"
 import { useDebounce } from "@/hooks/use-debounce"
 import { useToast } from "@/hooks/use-toast"
+import MasterAPI from "@/lib/master-api"
 
 interface SearchResults {
   users: any[]
@@ -83,38 +84,8 @@ export default function SearchPage() {
 
   const fetchTrendingContent = async () => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      const response = await fetch('/api/explore/trending?category=all&limit=20', {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Trending content received:', {
-          posts: data.posts?.length || 0,
-          reels: data.reels?.length || 0,
-          users: data.users?.length || 0
-        })
-
-        // Log first reel to check thumbnail
-        if (data.reels && data.reels.length > 0) {
-          console.log('First reel data:', {
-            id: data.reels[0]._id,
-            has_thumbnail: !!data.reels[0].thumbnail_url,
-            has_video: !!data.reels[0].video_url,
-            thumbnail_url: data.reels[0].thumbnail_url,
-            video_url: data.reels[0].video_url
-          })
-        }
-
-        setTrendingContent(data)
-      }
+      const data = await MasterAPI.call('/api/explore/trending?category=all&limit=20')
+      setTrendingContent(data)
     } catch (error) {
       console.error('Error fetching trending:', error)
     } finally {
@@ -196,17 +167,20 @@ export default function SearchPage() {
 
     setShowHistory(false)
     setIsSearching(true)
-
-    // Save to history
     saveToHistory(query)
+
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
-      if (response.ok) {
-        const data = await response.json()
-        setSearchResults(data)
-      }
+      const results = await MasterAPI.Search.search(query)
+      console.log('[Search Page] Search results:', {
+        users: results.users.length,
+        posts: results.posts.length,
+        hashtags: results.hashtags.length
+      })
+
+      setSearchResults(results)
     } catch (error) {
       console.error("Search failed:", error)
+      setSearchResults({ users: [], posts: [], hashtags: [] })
     } finally {
       setIsSearching(false)
     }
@@ -215,63 +189,27 @@ export default function SearchPage() {
   useEffect(() => {
     if (debouncedSearchQuery) {
       performSearch(debouncedSearchQuery)
-      setActiveTab("posts")
+      // Only switch to people tab if we're on trending tab
+      if (activeTab === "trending") {
+        setActiveTab("people")
+      }
     }
   }, [debouncedSearchQuery, performSearch])
 
   const handleFollowUser = async (userId: string) => {
     try {
-      // Get token from cookies
-      const cookies = document.cookie.split(';');
-      const tokenCookie = cookies.find(cookie => {
-        const trimmed = cookie.trim();
-        return trimmed.startsWith('token=') || trimmed.startsWith('client-token=');
-      });
-
-      if (!tokenCookie) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to follow users",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const token = tokenCookie.split('=')[1];
-
-      const response = await fetch(`/api/users/${userId}/follow`, {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFollowingUsers((prev) => new Set([...prev, userId]));
-        toast({
-          title: "Success",
-          description: data.message || "You are now following this user",
-        });
-      } else if (response.status === 401) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to follow users",
-          variant: "destructive",
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to follow user');
-      }
+      const data = await MasterAPI.User.followUser(userId)
+      setFollowingUsers((prev) => new Set([...prev, userId]))
+      toast({
+        title: "Success",
+        description: data.message || "You are now following this user",
+      })
     } catch (error: any) {
-      console.error("Follow failed:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to follow user. Please try again.",
         variant: "destructive",
-      });
+      })
     }
   }
 

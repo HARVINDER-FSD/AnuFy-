@@ -5,6 +5,8 @@ import { Plus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
+import ProfileManager from "@/lib/profile-manager"
+import MasterAPI from "@/lib/master-api"
 
 interface Story {
   id: string
@@ -40,28 +42,21 @@ export function StoriesBar() {
     // Fetch stories immediately with optimizations
     const fetchStories = async () => {
       try {
-        // Get token for authenticated request
-        const token = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-          ?.split('=')[1]
-
-        const response = await fetch('/api/stories', {
-          credentials: 'include',
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json'
-          }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
+        const data = await MasterAPI.Story.getStories()
+        // Ensure data is an array
+        if (Array.isArray(data)) {
           setStories(data)
+        } else if (data && Array.isArray(data.stories)) {
+          setStories(data.stories)
+        } else if (data && Array.isArray(data.data)) {
+          setStories(data.data)
         } else {
-          console.error('Failed to fetch stories:', response.status)
+          console.warn('Stories data is not an array:', data)
+          setStories([])
         }
       } catch (error) {
         console.error('Error fetching stories:', error)
+        setStories([])
       } finally {
         setLoading(false)
       }
@@ -71,58 +66,53 @@ export function StoriesBar() {
     fetchStories()
   }, [])
 
-  // Fetch user avatar from their stories or profile
+  // Fetch user avatar using ProfileManager
   useEffect(() => {
     const fetchUserAvatar = async () => {
-      if (user) {
-        console.log('StoriesBar - User object:', user)
+      if (!user) return
 
-        // Try to get avatar from user object first (check multiple possible fields)
-        const userAvatar = user.avatar || (user as any).avatar_url || (user as any).profile_picture
-        if (userAvatar && userAvatar !== '/placeholder-user.jpg') {
-          console.log('StoriesBar - Using user avatar:', userAvatar)
-          setUserAvatar(userAvatar)
-          return
+      try {
+        // Use ProfileManager to get fresh profile data
+        const profileData = await ProfileManager.getCurrentUserProfile(true);
+        if (profileData?.avatar_url) {
+          setUserAvatar(profileData.avatar_url);
+          return;
         }
+      } catch (error) {
+        console.error('Error fetching user avatar:', error);
+      }
 
-        // If not available, fetch from profile API
-        try {
-          const token = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-            ?.split('=')[1]
+      // Fallback: try to get from user object
+      const userAvatarFromAuth = user.avatar || (user as any).avatar_url || (user as any).profile_picture;
+      if (userAvatarFromAuth && userAvatarFromAuth !== '/placeholder-user.jpg') {
+        setUserAvatar(userAvatarFromAuth);
+        return;
+      }
 
-          console.log('StoriesBar - Fetching from /api/users/me')
-          const response = await fetch('/api/users/me', {
-            headers: {
-              'Authorization': token ? `Bearer ${token}` : ''
-            }
-          })
-
-          if (response.ok) {
-            const profileData = await response.json()
-            console.log('StoriesBar - Profile data:', profileData)
-            const fetchedAvatar = profileData.avatar || profileData.avatar_url || profileData.profile_picture
-            if (fetchedAvatar && fetchedAvatar !== '/placeholder-user.jpg') {
-              console.log('StoriesBar - Using fetched avatar:', fetchedAvatar)
-              setUserAvatar(fetchedAvatar)
-              return
-            }
-          }
-        } catch (error) {
-          console.error('StoriesBar - Error fetching user avatar:', error)
-        }
-
-        // Last resort: try to get from stories
-        const myStoryData = stories.find(s => s.user_id === user.id)
-        if (myStoryData?.avatar_url) {
-          console.log('StoriesBar - Using story avatar:', myStoryData.avatar_url)
-          setUserAvatar(myStoryData.avatar_url)
-        }
+      // Last resort: try to get from stories
+      const myStoryData = stories.find(s => s.user_id === user.id);
+      if (myStoryData?.avatar_url && myStoryData.avatar_url !== '/placeholder-user.jpg') {
+        setUserAvatar(myStoryData.avatar_url);
       }
     }
 
-    fetchUserAvatar()
+    fetchUserAvatar();
+
+    // Listen for profile updates
+    const handleProfileUpdate = () => {
+      fetchUserAvatar();
+    };
+
+    const events = ['profile-updated', 'force-profile-refresh', 'force-mongodb-refresh'];
+    events.forEach(event => {
+      window.addEventListener(event, handleProfileUpdate);
+    });
+
+    return () => {
+      events.forEach(event => {
+        window.removeEventListener(event, handleProfileUpdate);
+      });
+    };
   }, [user, stories])
 
   const handleStoryClick = (storyUserId?: string) => {
@@ -157,8 +147,8 @@ export function StoriesBar() {
     }
   }
 
-  // Group stories by user
-  const groupedStories = stories.reduce((acc, story) => {
+  // Group stories by user (with safety check)
+  const groupedStories = Array.isArray(stories) ? stories.reduce((acc, story) => {
     if (!acc[story.user_id]) {
       acc[story.user_id] = {
         user_id: story.user_id,
@@ -171,21 +161,39 @@ export function StoriesBar() {
     }
     acc[story.user_id].stories.push(story)
     return acc
-  }, {} as Record<string, any>)
+  }, {} as Record<string, any>) : {}
 
   // Separate your stories from others
   const myStories = user ? Object.values(groupedStories).find((us: any) => us.user_id === user.id) : null
   const otherStories = Object.values(groupedStories).filter((us: any) => us.user_id !== user?.id)
 
   // Get avatar from multiple sources with priority
-  const myAvatar = myStories?.avatar_url ||
-    userAvatar ||
-    user?.avatar ||
-    (user as any)?.avatar_url ||
-    (user as any)?.profile_picture
+  // Accept any avatar including /placeholder-user.jpg (it's a valid avatar)
+  let displayAvatar = '/placeholder.svg'
 
-  // Filter out placeholder avatars
-  const displayAvatar = myAvatar && myAvatar !== '/placeholder-user.jpg' ? myAvatar : null
+  if (userAvatar && userAvatar !== '') {
+    displayAvatar = userAvatar
+  } else if (myStories?.avatar_url) {
+    displayAvatar = myStories.avatar_url
+  } else if (user?.avatar) {
+    displayAvatar = user.avatar
+  } else if ((user as any)?.avatar_url) {
+    displayAvatar = (user as any).avatar_url
+  } else if ((user as any)?.profile_picture) {
+    displayAvatar = (user as any).profile_picture
+  }
+
+  console.log('[StoriesBar] Final display avatar:', displayAvatar)
+
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === 'development' && user && mounted) {
+    console.log('StoriesBar Avatar Debug:', {
+      userAvatar,
+      myStoriesAvatar: myStories?.avatar_url,
+      userObjectAvatar: user?.avatar,
+      finalDisplayAvatar: displayAvatar
+    })
+  }
 
   return (
     <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 pt-2 px-2 sm:px-4 mb-2 scrollbar-hide">
@@ -203,8 +211,10 @@ export function StoriesBar() {
               : 'border-border'
               }`}>
               <AvatarImage
-                src={displayAvatar || "/placeholder.svg"}
+                src={displayAvatar}
                 alt={user.username || "User"}
+                className="object-cover"
+                loading="lazy"
               />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {user.username ? user.username.charAt(0).toUpperCase() : "U"}

@@ -5,7 +5,7 @@ import User from '@/models/user';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
+const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       .select('username full_name avatar_url is_verified')
       .lean();
     
-    const senderMap = new Map(senders.map(s => [s._id.toString(), s]));
+    const senderMap = new Map(senders.map((s: any) => [s._id.toString(), s]));
     
     // Get unread count
     const unreadCount = await Notification.countDocuments({
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     const total = await Notification.countDocuments(query);
     
     // Format notifications
-    const formattedNotifications = notifications.map(n => {
+    const formattedNotifications = notifications.map((n: any) => {
       const sender = senderMap.get(n.sender_id.toString());
       return {
         id: n._id.toString(),

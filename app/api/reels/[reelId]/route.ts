@@ -12,10 +12,10 @@ export async function GET(
 ) {
   try {
     const reelId = params.reelId;
-    
+
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db();
-    
+
     const reel = await db.collection('reels')
       .aggregate([
         { $match: { _id: new ObjectId(reelId) } },
@@ -52,13 +52,13 @@ export async function GET(
         }
       ])
       .toArray();
-    
+
     await client.close();
-    
+
     if (reel.length === 0) {
       return NextResponse.json({ message: 'Reel not found' }, { status: 404 });
     }
-    
+
     const transformedReel = {
       id: reel[0]._id.toString(),
       user_id: reel[0].user_id.toString(),
@@ -79,9 +79,9 @@ export async function GET(
         is_verified: reel[0].user.is_verified || false
       }
     };
-    
+
     return NextResponse.json(transformedReel);
-    
+
   } catch (error: any) {
     console.error('Error fetching reel:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
@@ -108,63 +108,67 @@ export async function PATCH(
         }
       }
     }
-    
+
     if (!token) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     if (!decoded || !decoded.userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const userId = decoded.userId;
-    
+
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db();
-    
+
     // Check if the reel exists and belongs to the user
     const existingReel = await db.collection('reels').findOne({
       _id: new ObjectId(reelId)
     });
-    
+
     if (!existingReel) {
       await client.close();
       return NextResponse.json({ message: 'Reel not found' }, { status: 404 });
     }
-    
+
     if (existingReel.user_id.toString() !== userId) {
       await client.close();
       return NextResponse.json({ message: 'You are not authorized to update this reel' }, { status: 403 });
     }
-    
+
     const body = await request.json();
     const { caption, location } = body;
-    
+
     // Update the reel
     const result = await db.collection('reels').updateOne(
       { _id: new ObjectId(reelId) },
-      { 
-        $set: { 
+      {
+        $set: {
           caption: caption || existingReel.caption,
           location: location !== undefined ? location : existingReel.location,
           updated_at: new Date()
         }
       }
     );
-    
+
     if (result.modifiedCount === 0) {
       await client.close();
       return NextResponse.json({ message: 'No changes made' }, { status: 400 });
     }
-    
+
     // Fetch updated reel
     const updatedReel = await db.collection('reels').findOne({
       _id: new ObjectId(reelId)
     });
-    
+
     await client.close();
-    
+
+    if (!updatedReel) {
+      return NextResponse.json({ message: 'Reel not found after update' }, { status: 404 });
+    }
+
     return NextResponse.json({
       id: updatedReel._id.toString(),
       user_id: updatedReel.user_id.toString(),
@@ -178,7 +182,7 @@ export async function PATCH(
       created_at: updatedReel.created_at,
       updated_at: updatedReel.updated_at
     });
-    
+
   } catch (error: any) {
     console.error('Error updating reel:', error);
     const status = error.status || 500;
@@ -207,45 +211,45 @@ export async function DELETE(
         }
       }
     }
-    
+
     if (!token) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     if (!decoded || !decoded.userId) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const userId = decoded.userId;
-    
+
     const client = await MongoClient.connect(MONGODB_URI);
     const db = client.db();
-    
+
     // Check if the reel exists and belongs to the user
     const existingReel = await db.collection('reels').findOne({
       _id: new ObjectId(reelId)
     });
-    
+
     if (!existingReel) {
       await client.close();
       return NextResponse.json({ message: 'Reel not found' }, { status: 404 });
     }
-    
+
     if (existingReel.user_id.toString() !== userId) {
       await client.close();
       return NextResponse.json({ message: 'You are not authorized to delete this reel' }, { status: 403 });
     }
-    
+
     // Delete the reel
     await db.collection('reels').deleteOne({
       _id: new ObjectId(reelId)
     });
-    
+
     await client.close();
-    
+
     return NextResponse.json({ message: 'Reel deleted successfully' });
-    
+
   } catch (error: any) {
     console.error('Error deleting reel:', error);
     const status = error.status || 500;

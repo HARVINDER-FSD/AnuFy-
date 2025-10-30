@@ -1,202 +1,223 @@
-# Instagram Modal - Quick Reference Card
+# 🎯 Quick Reference Card
 
-## 🚀 Quick Start
+## 🚀 Start Servers
+```bash
+# Terminal 1: Frontend (port 3000)
+npm run dev
 
-```tsx
-import { InstagramPostModal } from "@/components/profile/instagram-post-modal"
-
-<InstagramPostModal
-  item={post}
-  type="posts"
-  currentUserId={user?.id}
-  isOpen={true}
-  onClose={() => setShowModal(false)}
-  onDelete={(id) => handleDelete(id)}
-/>
+# Terminal 2: Backend (port 8000)
+cd api-server
+npm start
 ```
 
-## 📋 Props
+## 📚 Master API - Common Operations
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `item` | `any` | ✅ | Post/reel object |
-| `type` | `"posts" \| "reels"` | ✅ | Content type |
-| `currentUserId` | `string` | ❌ | Current user ID |
-| `isOpen` | `boolean` | ✅ | Modal visibility |
-| `onClose` | `() => void` | ✅ | Close handler |
-| `onDelete` | `(id: string) => void` | ❌ | Delete callback |
-
-## 📦 Item Object
-
+### Get Data
 ```typescript
-{
-  id: string
-  user: {
-    id: string
-    username: string
-    avatar_url?: string
-    full_name?: string
-    is_verified?: boolean
-  }
-  caption?: string
-  content?: string
-  image?: string
-  media_urls?: string[]
-  video_url?: string
-  likes_count?: number
-  comments_count?: number
-  is_liked?: boolean
-  is_saved?: boolean
-  created_at?: string
-  location?: string
+import MasterAPI from '@/lib/master-api'
+
+// Posts
+const posts = await MasterAPI.Post.getFeed()
+const post = await MasterAPI.Post.getPost(postId)
+
+// Reels
+const reels = await MasterAPI.Reel.getReels()
+
+// Stories
+const stories = await MasterAPI.Story.getStories()
+
+// Notifications
+const notifications = await MasterAPI.Notification.getNotifications()
+
+// Search
+const results = await MasterAPI.Search.search('query')
+
+// User
+const user = await MasterAPI.User.getMe()
+```
+
+### Mutations
+```typescript
+// Like
+await MasterAPI.Post.likePost(postId)
+await MasterAPI.Reel.likeReel(reelId)
+
+// Comment
+await MasterAPI.Post.commentPost(postId, 'Great post!')
+await MasterAPI.Reel.commentReel(reelId, 'Nice!')
+
+// Follow
+await MasterAPI.User.followUser(userId)
+
+// Notifications
+await MasterAPI.Notification.markAsRead(notificationId)
+await MasterAPI.Notification.markAsRead() // Mark all
+```
+
+### Custom Call
+```typescript
+await MasterAPI.call('/api/custom', {
+  method: 'POST',
+  body: { key: 'value' },
+  cache: false,
+  timeout: 15000,
+  retry: 2
+})
+```
+
+### Cache Management
+```typescript
+// Clear specific cache
+MasterAPI.clearCache('/api/posts')
+
+// Clear all cache
+MasterAPI.clearAllCache()
+```
+
+## 🔧 Master Routes - API Route Pattern
+
+### GET Route (with caching)
+```typescript
+import { NextRequest } from 'next/server'
+import { proxyToAPI, CACHE_DURATION } from '@/lib/master-routes'
+
+export async function GET(request: NextRequest) {
+  return proxyToAPI(request, '/api/endpoint', {
+    cache: true,
+    cacheDuration: CACHE_DURATION.MEDIUM,
+    fallback: []
+  })
 }
 ```
 
-## 🎯 Features
+### POST Route (with auth)
+```typescript
+import { proxyToAPI, requireAuth } from '@/lib/master-routes'
 
-- ✅ Like/Unlike
-- ✅ Add Comments
-- ✅ View Likes List
-- ✅ Save/Unsave
-- ✅ Delete (owner)
-- ✅ More Options Menu
-- ✅ Verified Badges
-- ✅ User Avatars
-- ✅ Timestamps
-- ✅ Responsive
-
-## 🔌 API Endpoints
-
-### Posts
-- `GET /api/posts/:id/comments`
-- `POST /api/posts/:id/comments`
-- `GET /api/posts/:id/likes`
-- `POST /api/posts/:id/like`
-- `DELETE /api/posts/:id/like`
-- `POST /api/posts/:id/save`
-- `DELETE /api/posts/:id/save`
-- `DELETE /api/posts/:id`
-
-### Reels
-- `GET /api/reels/:id/comments`
-- `POST /api/reels/:id/comments`
-- `GET /api/reels/:id/likes`
-- `POST /api/reels/:id/like`
-- `DELETE /api/reels/:id/like`
-- `POST /api/reels/:id/save`
-- `DELETE /api/reels/:id/save`
-- `DELETE /api/reels/:id`
-
-## 🎨 Key Components
-
-```tsx
-// Header
-<Avatar /> + Username + Verified + More Menu
-
-// Comments
-<ScrollArea>
-  Caption + User Comments with Avatars
-</ScrollArea>
-
-// Actions
-❤️ Like | 💬 Comment | ✈️ Share | 🔖 Save
-
-// Likes
-"42 likes" (clickable) → Opens modal
-
-// Comment Input
-😊 [Add a comment...] [Post]
+export async function POST(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+  
+  return proxyToAPI(request, '/api/endpoint')
+}
 ```
 
-## 💡 Common Patterns
+## ⚙️ Configuration
 
-### Open Modal
-```tsx
-const [selectedPost, setSelectedPost] = useState(null)
-const [showModal, setShowModal] = useState(false)
-
-<div onClick={() => {
-  setSelectedPost(post)
-  setShowModal(true)
-}}>
-  <img src={post.image} />
-</div>
+### Cache Durations
+```typescript
+CACHE_DURATION.SHORT   // 10 seconds
+CACHE_DURATION.MEDIUM  // 30 seconds
+CACHE_DURATION.LONG    // 60 seconds
 ```
 
-### Handle Delete
-```tsx
-onDelete={(postId) => {
-  setPosts(posts.filter(p => p.id !== postId))
-  toast({ title: "Deleted" })
-}}
+### Default Settings
+```typescript
+timeout: 30000    // 30 seconds
+retry: 2          // 2 retries
+cache: true       // For GET requests
 ```
 
-### Handle Close
-```tsx
-onClose={() => {
-  setShowModal(false)
-  setSelectedPost(null)
-}}
+## 🔍 Debugging
+
+### Console Logs
+```
+[MasterAPI] Cache hit: /api/posts          ✅ Good
+[MasterAPI] Request already pending        ✅ Good
+[MasterAPI] Attempt 1 failed: timeout      ⚠️ Retrying
+[MasterRoutes] Using fallback              ⚠️ Backend issue
 ```
 
-## 🐛 Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Modal doesn't open | Check `isOpen` prop |
-| No user data | Verify API returns user objects |
-| Can't like | Ensure user is logged in |
-| Delete not showing | Check `currentUserId` matches |
-| Comments not loading | Check API endpoint |
-
-## 📱 Responsive
-
-- **Desktop**: 60/40 split layout
-- **Mobile**: Vertical stack layout
-- **Tablet**: Adaptive layout
-
-## 🎨 Customization
-
-### Layout Ratio
-```tsx
-// Change from 60/40 to 70/30
-<div className="md:w-[70%]"> {/* Media */}
-<div className="md:w-[30%]"> {/* Details */}
+### Clear Cache
+```typescript
+// In browser console
+MasterAPI.clearAllCache()
 ```
 
-### Colors
-```tsx
-// Like: fill-red-500
-// Save: fill-current
-// Verified: text-blue-500
-// Delete: text-red-600
+## 📊 Performance Tips
+
+### Use Caching
+```typescript
+// Good: Fast on repeat visits
+cache: true, cacheDuration: CACHE_DURATION.MEDIUM
+
+// Bad: Always hits backend
+cache: false
 ```
 
-## ⚡ Performance
+### Provide Fallbacks
+```typescript
+// Good: No error shown to user
+fallback: []
 
-- Lazy load comments
-- Lazy load likes
-- Optimistic updates
-- Efficient re-renders
+// Bad: Error shown to user
+fallback: null
+```
 
-## 📚 Documentation
+### Adjust Timeouts
+```typescript
+// Quick operations
+timeout: 10000  // 10s
 
-- `INSTAGRAM_MODAL_COMPLETE.md` - Full docs
-- `INSTAGRAM_VS_BASIC_COMPARISON.md` - Comparison
-- `FINAL_INSTAGRAM_MODAL_SUMMARY.md` - Summary
+// Standard operations
+timeout: 30000  // 30s (default)
 
-## ✅ Checklist
+// Slow operations
+timeout: 60000  // 60s
+```
 
-- [ ] Import component
-- [ ] Pass required props
-- [ ] Test like/unlike
-- [ ] Test add comment
-- [ ] Test view likes
-- [ ] Test save/unsave
-- [ ] Test delete (owner)
-- [ ] Test mobile view
-- [ ] Test dark mode
+## 🚨 Common Issues
 
-## 🎉 Done!
+### Stale Data
+```typescript
+// Solution: Clear cache
+MasterAPI.clearCache('/api/posts')
+```
 
-Your Instagram-style modal is ready to use!
+### Timeout Errors
+```typescript
+// Solution: Increase timeout
+MasterAPI.call('/api/endpoint', { timeout: 60000 })
+```
+
+### Too Many Requests
+```typescript
+// Solution: Increase cache duration
+cache: true, cacheDuration: 60000
+```
+
+## 📁 File Locations
+
+### Core Files
+- `lib/master-api.ts` - Client API manager
+- `lib/master-routes.ts` - Server route optimizer
+
+### Documentation
+- `START_HERE_MASTER_SYSTEM.md` - Start here!
+- `MASTER_API_COMPLETE.md` - Full API docs
+- `MASTER_ROUTES_COMPLETE.md` - Full routes docs
+- `ALL_SYSTEMS_GO.md` - System overview
+
+## ✅ Testing Checklist
+
+- [ ] Start both servers
+- [ ] Open http://localhost:3000
+- [ ] Check console for `[MasterAPI]` logs
+- [ ] Test posts feed
+- [ ] Test reels
+- [ ] Test stories
+- [ ] Test search
+- [ ] Test notifications
+- [ ] Verify fast loading on repeat visits
+
+## 🎯 Success Indicators
+
+- ✅ Console shows cache hits
+- ✅ Fast loading (especially repeat visits)
+- ✅ No error messages
+- ✅ Smooth interactions
+- ✅ Instant responses for cached data
+
+---
+
+**Keep this card handy for quick reference! 📌**

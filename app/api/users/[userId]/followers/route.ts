@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MongoClient, ObjectId } from 'mongodb';
+import { getTokenFromRequest } from '@/lib/api-proxy';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
@@ -9,33 +11,23 @@ export async function GET(
 ) {
   try {
     const { userId } = params;
+    const token = getTokenFromRequest(request);
     
-    const client = await MongoClient.connect(MONGODB_URI);
-    const db = client.db();
+    // Proxy to API server
+    const response = await fetch(`${API_URL}/api/users/${userId}/followers`, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json'
+      }
+    });
     
-    // Get all followers
-    const follows = await db.collection('follows')
-      .find({ following_id: new ObjectId(userId) })
-      .toArray();
+    if (!response.ok) {
+      const error = await response.json();
+      return NextResponse.json(error, { status: response.status });
+    }
     
-    // Get user details for each follower
-    const followerIds = follows.map(f => f.follower_id);
-    const users = await db.collection('users')
-      .find({ _id: { $in: followerIds } })
-      .toArray();
-    
-    const followers = users.map(user => ({
-      id: user._id.toString(),
-      username: user.username,
-      full_name: user.full_name || user.name || user.username,
-      avatar: user.avatar_url || user.avatar || '/placeholder-user.jpg',
-      bio: user.bio || '',
-      is_verified: user.is_verified || false
-    }));
-    
-    await client.close();
-    
-    return NextResponse.json({ followers });
+    const data = await response.json();
+    return NextResponse.json(data.data || data);
     
   } catch (error: any) {
     console.error('Error fetching followers:', error);

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix My Avatar</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        .avatar-preview {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin: 2rem auto;
+            object-fit: cover;
+            border: 4px solid #667eea;
+        }
+        .info {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+        .info p {
+            margin: 0.5rem 0;
+            color: #555;
+        }
+        .info strong {
+            color: #333;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-weight: 600;
+            margin: 0.5rem;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 10px;
+            display: none;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix My Avatar</h1>
+        <p>This tool will convert your base64 avatar to a proper Cloudinary URL</p>
+
+        <img id="avatarPreview" class="avatar-preview" src="/placeholder.svg" alt="Your avatar">
+
+        <div class="info" id="userInfo" style="display: none;">
+            <p><strong>Username:</strong> <span id="username"></span></p>
+            <p><strong>Current Avatar:</strong> <span id="avatarType"></span></p>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div id="buttons">
+            <button onclick="loadProfile()">Load My Profile</button>
+            <button id="fixButton" onclick="fixAvatar()" style="display: none;">Fix My Avatar</button>
+        </div>
+    </div>
+
+    <script>
+        let userData = null;
+        let base64Avatar = null;
+
+        async function loadProfile() {
+            const status = document.getElementById('status');
+            status.className = 'status info';
+            status.textContent = 'Loading your profile...';
+
+            try {
+                const token = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+                    ?.split('=')[1];
+
+                if (!token) {
+                    throw new Error('Not logged in. Please log in first.');
+                }
+
+                const response = await fetch('/api/users/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load profile');
+                }
+
+                userData = await response.json();
+                console.log('Profile data:', userData);
+
+                // Check if avatar is base64
+                const avatar = userData.avatar || userData.avatar_url;
+                
+                if (avatar && avatar.startsWith('data:image')) {
+                    base64Avatar = avatar;
+                    
+                    // Show preview
+                    document.getElementById('avatarPreview').src = avatar;
+                    document.getElementById('username').textContent = userData.username;
+                    document.getElementById('avatarType').textContent = 'Base64 (needs fixing)';
+                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('fixButton').style.display = 'inline-block';
+                    
+                    status.className = 'status info';
+                    status.textContent = '⚠️ Your avatar is stored as base64. Click "Fix My Avatar" to convert it to a proper URL.';
+                } else if (avatar && avatar.startsWith('http')) {
+                    document.getElementById('avatarPreview').src = avatar;
+                    document.getElementById('username').textContent = userData.username;
+                    document.getElementById('avatarType').textContent = 'Cloudinary URL (already fixed!)';
+                    document.getElementById('userInfo').style.display = 'block';
+                    
+                    status.className = 'status success';
+                    status.textContent = '✅ Your avatar is already using a proper URL. No fix needed!';
+                } else {
+                    status.className = 'status info';
+                    status.textContent = 'No avatar found. Upload one from your profile edit page.';
+                }
+
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ ' + error.message;
+            }
+        }
+
+        async function fixAvatar() {
+            if (!base64Avatar) {
+                alert('No base64 avatar to fix');
+                return;
+            }
+
+            const status = document.getElementById('status');
+            const fixButton = document.getElementById('fixButton');
+            
+            fixButton.disabled = true;
+            fixButton.innerHTML = '<span class="loading"></span> Uploading...';
+            
+            status.className = 'status info';
+            status.textContent = '📤 Uploading your avatar to Cloudinary...';
+
+            try {
+                const token = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('token=') || row.startsWith('client-token='))
+                    ?.split('=')[1];
+
+                // Get Cloudinary config
+                const configResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!configResponse.ok) {
+                    throw new Error('Failed to get upload configuration');
+                }
+
+                const config = await configResponse.json();
+
+                // Convert base64 to blob
+                const response = await fetch(base64Avatar);
+                const blob = await response.blob();
+
+                // Upload to Cloudinary
+                const formData = new FormData();
+                formData.append('file', blob);
+                formData.append('upload_preset', config.uploadPreset);
+                formData.append('folder', config.folder);
+                formData.append('public_id', config.publicId);
+
+                status.textContent = '☁️ Uploading to Cloudinary...';
+
+                const uploadResponse = await fetch(
+                    `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`,
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload to Cloudinary');
+                }
+
+                const uploadResult = await uploadResponse.json();
+                const cloudinaryUrl = uploadResult.secure_url;
+
+                console.log('Uploaded to:', cloudinaryUrl);
+
+                // Update profile with new URL
+                status.textContent = '💾 Saving to database...';
+
+                const updateResponse = await fetch('/api/users/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        avatar: cloudinaryUrl
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Failed to update profile');
+                }
+
+                // Success!
+                status.className = 'status success';
+                status.textContent = '✅ Avatar fixed! Your profile picture is now using a proper Cloudinary URL. Redirecting...';
+
+                // Update preview
+                document.getElementById('avatarPreview').src = cloudinaryUrl + '?t=' + Date.now();
+                document.getElementById('avatarType').textContent = 'Cloudinary URL (fixed!)';
+
+                // Redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/profile?t=' + Date.now();
+                }, 2000);
+
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ ' + error.message;
+                fixButton.disabled = false;
+                fixButton.textContent = 'Fix My Avatar';
+            }
+        }
+    </script>
+</body>
+</html>

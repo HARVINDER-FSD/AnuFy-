@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ShareModal } from "@/components/share/share-modal"
+import MasterAPI from "@/lib/master-api"
 
 interface Reel {
   id: string
@@ -80,6 +81,7 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
   const [showShareModal, setShowShareModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [isVideoLoading, setIsVideoLoading] = useState(true)
+  const [videoError, setVideoError] = useState(false)
   const { toast } = useToast()
 
   const isOwner = currentUserId === reel.user.id || reel.isOwner
@@ -175,21 +177,8 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
   const fetchComments = async () => {
     setIsLoadingComments(true)
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/reels/${reel.id}/comment`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setComments(data.comments || [])
-      }
+      const data = await MasterAPI.Reel.getComments(reel.id)
+      setComments(data.comments || [])
     } catch (error) {
       console.error('Error fetching comments:', error)
     } finally {
@@ -207,29 +196,13 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
     if (!commentText.trim()) return
 
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/reels/${reel.id}/comment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({ content: commentText })
+      const data = await MasterAPI.Reel.commentReel(reel.id, commentText)
+      setComments([data.comment, ...comments])
+      setCommentText("")
+      toast({
+        title: "Comment added!",
+        description: "Your comment has been posted.",
       })
-
-      if (response.ok) {
-        const data = await response.json()
-        setComments([data.comment, ...comments])
-        setCommentText("")
-        toast({
-          title: "Comment added!",
-          description: "Your comment has been posted.",
-        })
-      }
     } catch (error) {
       toast({
         title: "Error",
@@ -241,28 +214,14 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
 
   const likeComment = async (commentId: string) => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/comments/${commentId}/like`, {
-        method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
+      const data = await MasterAPI.call(`/api/comments/${commentId}/like`, { method: 'POST' })
+      setCommentLikes(prev => ({
+        ...prev,
+        [commentId]: {
+          liked: data.liked,
+          count: (prev[commentId]?.count || 0) + (data.liked ? 1 : -1)
         }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setCommentLikes(prev => ({
-          ...prev,
-          [commentId]: {
-            liked: data.liked,
-            count: (prev[commentId]?.count || 0) + (data.liked ? 1 : -1)
-          }
-        }))
-      }
+      }))
     } catch (error) {
       console.error('Error liking comment:', error)
     }
@@ -272,31 +231,18 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
     if (!replyText.trim()) return
 
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/comments/${parentCommentId}/reply`, {
+      const data = await MasterAPI.call(`/api/comments/${parentCommentId}/reply`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
         body: JSON.stringify({ content: replyText })
       })
-
-      if (response.ok) {
-        const data = await response.json()
-        // Add reply to the comments list
-        setComments(prev => [...prev, data.reply])
-        setReplyText("")
-        setReplyingTo(null)
-        toast({
-          title: "Reply added!",
-          description: "Your reply has been posted.",
-        })
-      }
+      // Add reply to the comments list
+      setComments(prev => [...prev, data.reply])
+      setReplyText("")
+      setReplyingTo(null)
+      toast({
+        title: "Reply added!",
+        description: "Your reply has been posted.",
+      })
     } catch (error) {
       toast({
         title: "Error",
@@ -308,29 +254,7 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
 
   const handleDelete = async () => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/reels/${reel.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      })
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          toast({
-            title: "Permission denied",
-            description: "You can only delete your own reels.",
-            variant: "destructive"
-          })
-          return
-        }
-        throw new Error('Failed to delete reel')
-      }
+      await MasterAPI.Reel.deleteReel(reel.id)
 
       toast({
         title: "Reel deleted",
@@ -338,12 +262,20 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
       })
 
       onDelete?.(reel.id)
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete reel.",
-        variant: "destructive"
-      })
+    } catch (error: any) {
+      if (error.message.includes('403')) {
+        toast({
+          title: "Permission denied",
+          description: "You can only delete your own reels.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to delete reel.",
+          variant: "destructive"
+        })
+      }
     } finally {
       setShowDeleteDialog(false)
     }
@@ -367,18 +299,29 @@ export function ReelPlayer({ reel, isActive, onLike, onComment, onShare, onBookm
         onError={(e) => {
           console.error('Video load error:', e)
           setIsVideoLoading(false)
-          toast({
-            title: "Video unavailable",
-            description: "This video could not be loaded",
-            variant: "destructive"
-          })
+          setVideoError(true)
         }}
       />
 
       {/* Loading indicator */}
-      {isVideoLoading && isActive && (
+      {isVideoLoading && isActive && !videoError && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-50">
           <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+
+      {/* Video error fallback */}
+      {videoError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-900 to-black z-40">
+          <div className="text-center px-6">
+            <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p className="text-white/80 text-lg font-medium mb-2">Video Unavailable</p>
+            <p className="text-white/60 text-sm">This video could not be loaded</p>
+          </div>
         </div>
       )}
 

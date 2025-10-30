@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MongoClient, ObjectId } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
+import { connectToDatabase } from '@/lib/mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
-const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
+const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192';
 
 
 export const dynamic = 'force-dynamic';
@@ -45,9 +45,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const skip = parseInt(searchParams.get('skip') || '0');
 
-    // Connect to database
-    const client = await MongoClient.connect(MONGODB_URI);
-    const db = client.db();
+    // Connect to database using shared connection
+    const { db } = await connectToDatabase();
 
     console.log('[Feed API] Fetching posts for user:', userId);
 
@@ -92,17 +91,15 @@ export async function GET(request: NextRequest) {
     const userLikes = await db.collection('likes')
       .find({ user_id: new ObjectId(userId) })
       .toArray();
-    
+
     const likedPostIds = new Set(userLikes.map(like => like.post_id.toString()));
     console.log('[Feed API] User has liked', likedPostIds.size, 'posts');
-
-    await client.close();
 
     // Format posts for frontend
     const formattedPosts = posts.map(post => {
       const postId = post._id.toString();
       const isLiked = likedPostIds.has(postId);
-      
+
       return {
         id: postId,
         content: post.caption || '',

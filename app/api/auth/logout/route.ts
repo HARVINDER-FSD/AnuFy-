@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       // Get the token from cookies
       const tokenCookie = req.cookies.get('token');
       
-      if (tokenCookie && tokenCookie.value) {
+      if (tokenCookie && tokenCookie.value && redis) {
         // Invalidate the session in Redis if it exists
         await redis.del(`session:${auth.userId}:${tokenCookie.value}`);
       }

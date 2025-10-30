@@ -13,10 +13,15 @@ declare global {
 
 // Connection options with increased timeout for better reliability
 const connectionOptions = {
-  serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
+  serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
-  connectTimeoutMS: 30000,
-  maxPoolSize: 10
+  connectTimeoutMS: 10000,
+  maxPoolSize: 50,
+  minPoolSize: 5,
+  maxIdleTimeMS: 60000,
+  retryWrites: true,
+  retryReads: true,
+  w: 'majority'
 };
 
 // Initialize MongoDB connection

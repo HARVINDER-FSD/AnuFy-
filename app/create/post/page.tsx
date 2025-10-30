@@ -22,6 +22,15 @@ export default function CreatePostPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Load media from sessionStorage if coming from /create/new
+  useEffect(() => {
+    const savedMedia = sessionStorage.getItem("selectedMedia")
+    if (savedMedia) {
+      setSelectedImage(savedMedia)
+      sessionStorage.removeItem("selectedMedia")
+    }
+  }, [])
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !user) {

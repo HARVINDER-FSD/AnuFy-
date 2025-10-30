@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, MessageCircle } from "lucide-react"
+import { Search, MessageCircle, TrendingUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
@@ -39,6 +39,24 @@ export function AppHeader() {
 
         {/* Navigation Icons */}
         <div className="flex items-center gap-3 sm:gap-4">
+          {/* Explore/Trending Icon */}
+          <div
+            onClick={() => router.push('/explore')}
+            className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer active:scale-95"
+            role="button"
+            tabIndex={0}
+            aria-label="Explore"
+          >
+            <TrendingUp
+              style={{
+                width: '28px',
+                height: '28px',
+                pointerEvents: 'none'
+              }}
+              className="text-gray-700 dark:text-gray-300"
+            />
+          </div>
+
           {/* Search Icon */}
           <div
             onClick={() => router.push('/search')}

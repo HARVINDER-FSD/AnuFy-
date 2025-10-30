@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T-Shirt Designs - Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            font-size: 20px;
+            margin-bottom: 50px;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+        
+        .design-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+        
+        .design-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .design-preview {
+            width: 100%;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .design-info {
+            padding: 25px;
+        }
+        
+        .design-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        
+        .design-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .design-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .tag {
+            background: #f0f0f0;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .download-btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 T-Shirt Design Gallery</h1>
+        <p class="subtitle">4 Professional designs ready to customize</p>
+        
+        <div class="gallery">
+            <!-- Design 1: Minimalist -->
+            <div class="design-card">
+                <div class="design-preview" style="background: #1a1a1a;">
+                    <svg width="300" height="350" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="150" cy="120" r="50" fill="#6366f1"/>
+                        <path d="M 135 105 L 150 120 L 165 105" stroke="white" stroke-width="3" fill="none"/>
+                        <path d="M 135 130 L 150 115 L 165 130" stroke="white" stroke-width="3" fill="none"/>
+                        <text x="150" y="200" font-family="Arial" font-size="32" font-weight="bold" fill="white" text-anchor="middle">YOUR APP</text>
+                        <text x="150" y="230" font-family="Arial" font-size="14" fill="#9ca3af" text-anchor="middle">Share Your World</text>
+                    </svg>
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Minimalist</h3>
+                    <p class="design-description">
+                        Clean, professional design with your app logo and tagline. Perfect for everyday wear.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Professional</span>
+                        <span class="tag">Clean</span>
+                        <span class="tag">Versatile</span>
+                    </div>
+                    <button class="download-btn" onclick="downloadDesign('minimalist')">Download Design</button>
+                </div>
+            </div>
+            
+            <!-- Design 2: Developer -->
+            <div class="design-card">
+                <div class="design-preview" style="background: #000000;">
+                    <svg width="300" height="350" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="20" y="40" width="260" height="150" rx="5" fill="#1e293b" opacity="0.8"/>
+                        <text x="40" y="75" font-family="Courier New" font-size="14" fill="#10b981">const awesome = () => {</text>
+                        <text x="60" y="100" font-family="Courier New" font-size="14" fill="#f59e0b">return</text>
+                        <text x="130" y="100" font-family="Courier New" font-size="14" fill="#22d3ee">"YourApp";</text>
+                        <text x="40" y="125" font-family="Courier New" font-size="14" fill="#10b981">}</text>
+                        <text x="150" y="220" font-family="Arial" font-size="12" fill="#64748b" text-anchor="middle">// Making social media better</text>
+                    </svg>
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Developer</h3>
+                    <p class="design-description">
+                        Code-themed design that showcases your tech roots. Perfect for developers and tech enthusiasts.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Tech</span>
+                        <span class="tag">Code</span>
+                        <span class="tag">Geek Culture</span>
+                    </div>
+                    <button class="download-btn" onclick="downloadDesign('developer')">Download Design</button>
+                </div>
+            </div>
+            
+            <!-- Design 3: Gradient -->
+            <div class="design-card">
+                <div class="design-preview" style="background: #ffffff;">
+                    <svg width="300" height="350" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#8b5cf6"/>
+                                <stop offset="50%" style="stop-color:#ec4899"/>
+                                <stop offset="100%" style="stop-color:#f59e0b"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="150" cy="100" r="50" fill="url(#g1)"/>
+                        <text x="150" y="180" font-family="Arial" font-size="32" font-weight="bold" fill="url(#g1)" text-anchor="middle">YOUR APP</text>
+                        <text x="60" y="240" font-size="20" text-anchor="middle">📸</text>
+                        <text x="100" y="240" font-size="20" text-anchor="middle">🎬</text>
+                        <text x="140" y="240" font-size="20" text-anchor="middle">📖</text>
+                        <text x="180" y="240" font-size="20" text-anchor="middle">💬</text>
+                        <text x="220" y="240" font-size="20" text-anchor="middle">🔔</text>
+                    </svg>
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Gradient</h3>
+                    <p class="design-description">
+                        Modern gradient design with feature icons. Eye-catching and vibrant, perfect for social media.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Modern</span>
+                        <span class="tag">Colorful</span>
+                        <span class="tag">Instagram-style</span>
+                    </div>
+                    <button class="download-btn" onclick="downloadDesign('gradient')">Download Design</button>
+                </div>
+            </div>
+            
+            <!-- Design 4: Features -->
+            <div class="design-card">
+                <div class="design-preview" style="background: #0f172a;">
+                    <svg width="300" height="350" xmlns="http://www.w3.org/2000/svg">
+                        <text x="150" y="50" font-family="Arial" font-size="28" font-weight="bold" fill="#f1f5f9" text-anchor="middle">YOUR APP</text>
+                        <text x="150" y="75" font-family="Arial" font-size="12" fill="#64748b" text-anchor="middle">More Than Just Social Media</text>
+                        <circle cx="30" cy="120" r="5" fill="#10b981"/>
+                        <text x="45" y="125" font-family="Arial" font-size="16" fill="#f1f5f9">Lightning Fast ⚡</text>
+                        <circle cx="30" cy="160" r="5" fill="#10b981"/>
+                        <text x="45" y="165" font-family="Arial" font-size="16" fill="#f1f5f9">Privacy First 🔒</text>
+                        <circle cx="30" cy="200" r="5" fill="#10b981"/>
+                        <text x="45" y="205" font-family="Arial" font-size="16" fill="#f1f5f9">Always Connected 🌐</text>
+                        <circle cx="30" cy="240" r="5" fill="#10b981"/>
+                        <text x="45" y="245" font-family="Arial" font-size="16" fill="#f1f5f9">Built for You 💙</text>
+                    </svg>
+                </div>
+                <div class="design-info">
+                    <h3 class="design-title">The Feature Showcase</h3>
+                    <p class="design-description">
+                        Highlights your app's key features with checkmarks. Great for marketing and brand awareness.
+                    </p>
+                    <div class="design-tags">
+                        <span class="tag">Marketing</span>
+                        <span class="tag">Features</span>
+                        <span class="tag">Bold</span>
+                    </div>
+                    <button class="download-btn" onclick="downloadDesign('features')">Download Design</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function downloadDesign(type) {
+            alert('To download:\n\n1. Right-click on the design preview\n2. Select "Save image as..."\n3. Or use the SVG files in public/tshirt-designs/ folder\n\nDesign type: ' + type);
+        }
+    </script>
+</body>
+</html>

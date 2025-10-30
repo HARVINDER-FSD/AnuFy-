@@ -1,91 +1,110 @@
 import { NextRequest, NextResponse } from "next/server"
-import { MongoClient, ObjectId } from 'mongodb'
-import { verifyAuth } from "@/lib/auth"
+import { ObjectId } from 'mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
-
+const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192';
 
 export const dynamic = 'force-dynamic';
 
 export async function PUT(req: NextRequest) {
   try {
-    // Get user from token
-    const authResult = await verifyAuth(req);
-    
-    if (!authResult.success) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    // Get token from Authorization header or cookies
+    const authHeader = req.headers.get('authorization');
+    let token = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else {
+      token = req.cookies.get('token')?.value || req.cookies.get('client-token')?.value;
     }
-    
-    const userId = authResult.userId;
-    const data = await req.json();
-    
-    console.log("Updating profile for user:", userId, "with data:", data);
-    
-    // Validate required fields
-    if (!data.full_name && !data.username && !data.bio && !data.website && !data.avatar_url) {
-      return NextResponse.json({ message: "At least one field is required to update" }, { status: 400 });
+
+    if (!token) {
+      return NextResponse.json(
+        { message: "No token provided" },
+        { status: 401 }
+      );
     }
-    
-    // Connect to MongoDB
-    const client = await MongoClient.connect(MONGODB_URI);
-    const db = client.db();
-    
-    // Prepare update fields
-    const updateFields: any = {
-      updated_at: new Date()
-    };
-    
-    // Only include fields that are provided
-    if (data.username !== undefined) updateFields.username = data.username;
-    if (data.full_name !== undefined) updateFields.full_name = data.full_name;
-    if (data.name !== undefined) updateFields.name = data.name;
-    if (data.bio !== undefined) updateFields.bio = data.bio;
-    if (data.website !== undefined) updateFields.website = data.website;
-    if (data.avatar_url !== undefined) updateFields.avatar_url = data.avatar_url;
-    if (data.avatar !== undefined) updateFields.avatar = data.avatar;
-    if (data.phone !== undefined) updateFields.phone = data.phone;
-    if (data.location !== undefined) updateFields.location = data.location;
-    if (data.is_private !== undefined) updateFields.is_private = data.is_private;
-    
+
+    // Verify JWT and get user ID
+    const jwt = await import('jsonwebtoken');
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+    if (!decoded || !decoded.userId) {
+      return NextResponse.json(
+        { message: "Invalid token" },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    console.log('[Profile Update API] Received update data:', body);
+
+    // Connect to MongoDB using shared connection
+    const { db } = await connectToDatabase();
+
+    // Prepare update data
+    const updateData: any = {};
+
+    if (body.name !== undefined) updateData.full_name = body.name;
+    if (body.bio !== undefined) updateData.bio = body.bio;
+    if (body.avatar !== undefined) {
+      updateData.avatar = body.avatar;
+      updateData.avatar_url = body.avatar;
+    }
+    if (body.website !== undefined) updateData.website = body.website;
+    if (body.location !== undefined) updateData.location = body.location;
+
+    console.log('[Profile Update API] Updating user with data:', updateData);
+
     // Update user in MongoDB
     const result = await db.collection('users').findOneAndUpdate(
-      { _id: new ObjectId(userId) },
-      { $set: updateFields },
-      { 
-        returnDocument: 'after',
-        projection: { password: 0, password_hash: 0 }
-      }
+      { _id: new ObjectId(decoded.userId) },
+      { $set: updateData },
+      { returnDocument: 'after' }
     );
-    
-    await client.close();
-    
+
     if (!result) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { message: "User not found" },
+        { status: 404 }
+      );
     }
-    
+
+    console.log('[Profile Update API] User updated successfully');
+
     // Return updated user data
-    return NextResponse.json({
-      success: true,
-      message: 'Profile updated successfully',
-      user: {
-        id: result._id.toString(),
-        username: result.username,
-        full_name: result.full_name || result.name,
-        bio: result.bio,
-        website: result.website,
-        avatar_url: result.avatar_url || result.avatar,
-        phone: result.phone,
-        location: result.location,
-        is_private: result.is_private,
-        is_verified: result.is_verified || result.verified,
-        updated_at: result.updated_at
+    const timestamp = Date.now();
+    const avatarValue = result.avatar || result.avatar_url || '/placeholder-user.jpg';
+
+    const updatedData = {
+      id: result._id.toString(),
+      username: result.username,
+      email: result.email,
+      name: result.full_name || result.name || '',
+      bio: result.bio || '',
+      avatar: avatarValue.includes('?') ? `${avatarValue}&t=${timestamp}` : `${avatarValue}?t=${timestamp}`,
+      avatar_url: avatarValue.includes('?') ? `${avatarValue}&t=${timestamp}` : `${avatarValue}?t=${timestamp}`,
+      followers: result.followers_count || result.followers || 0,
+      following: result.following_count || result.following || 0,
+      verified: result.is_verified || result.verified || false,
+      posts_count: result.posts_count || 0,
+      website: result.website || '',
+      location: result.location || ''
+    };
+
+    return NextResponse.json(updatedData, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
+
   } catch (error: any) {
-    console.error("Profile update error:", error);
+    console.error("Update profile error:", error);
     return NextResponse.json(
-      { message: error.message || "Failed to update profile" },
-      { status: error.status || 500 }
+      { message: "Failed to update profile", error: error.message },
+      { status: 500 }
     );
   }
 }

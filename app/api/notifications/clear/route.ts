@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -22,7 +22,7 @@ export async function DELETE(request: NextRequest) {
     const userId = decoded.userId;
 
     // Connect to database
-    const db = await connectDB();
+    const { db } = await connectToDatabase();
     const notificationsCollection = db.collection('notifications');
 
     // Delete all notifications for this user
@@ -46,3 +46,5 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+

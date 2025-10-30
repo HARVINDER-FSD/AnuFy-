@@ -1,4 +1,4 @@
-# Install Node.js 20 LTS - Fix Webpack Error
+npm insta;;# Install Node.js 20 LTS - Fix Webpack Error
 
 ## The Problem
 Your Node.js v22.16.0 is incompatible with Next.js 14.x, causing webpack module errors.

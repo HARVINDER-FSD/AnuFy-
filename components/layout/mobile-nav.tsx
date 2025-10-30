@@ -50,23 +50,23 @@ export function MobileNav() {
     }
   }, [router, user])
 
-  // Set mounted state and lazy prefetch routes
+  // Set mounted state and aggressive prefetch routes
   useEffect(() => {
     setMounted(true)
 
-    // Lazy prefetch only critical routes after a delay
-    const prefetchTimer = setTimeout(() => {
-      if (user) {
-        // Only prefetch if user is logged in
-        router.prefetch('/feed')
-        router.prefetch('/search')
-        if (user.username) {
-          router.prefetch(`/profile/${user.username}`)
-        }
+    // Aggressive prefetch for instant navigation
+    if (user) {
+      // Prefetch immediately for instant navigation
+      router.prefetch('/feed')
+      router.prefetch('/notifications')
+      router.prefetch('/reels')
+      router.prefetch('/search')
+      router.prefetch('/create')
+      
+      if (user.username) {
+        router.prefetch(`/profile/${user.username}`)
       }
-    }, 1000) // Delay prefetch by 1s to prioritize initial load
-
-    return () => clearTimeout(prefetchTimer)
+    }
   }, [router, user])
 
   // Fetch notification count

@@ -1,6 +1,108 @@
 import { Router } from "express"
+import { connectToDatabase } from "../lib/database"
+import User from "../models/user"
+import Post from "../models/post"
 
 const router = Router()
+
+// Global search (root endpoint)
+router.get("/", async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query
+
+    if (!q || typeof q !== "string") {
+      return res.status(400).json({ 
+        success: false,
+        error: "Query parameter is required" 
+      })
+    }
+
+    console.log('[Search] Query:', q)
+    
+    await connectToDatabase()
+
+    // First, check total users in database
+    const totalUsers = await User.countDocuments()
+    console.log('[Search] Total users in database:', totalUsers)
+
+    // Search users with simpler query
+    const users = await User.find({
+      $or: [
+        { username: { $regex: q, $options: 'i' } },
+        { full_name: { $regex: q, $options: 'i' } }
+      ]
+    })
+    .select('username full_name avatar_url is_verified followers_count is_active')
+    .limit(Number(limit))
+    .lean()
+
+    console.log('[Search] Found users:', users.length)
+    if (users.length > 0) {
+      console.log('[Search] First user:', users[0])
+    }
+
+    // Search posts
+    const posts = await Post.find({
+      $or: [
+        { caption: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } }
+      ]
+    })
+    .populate('user_id', 'username full_name avatar_url is_verified')
+    .limit(Number(limit))
+    .lean()
+
+    // Extract hashtags from query
+    const hashtags = q.startsWith('#') ? [{ tag: q, posts: 0 }] : []
+
+    const formattedUsers = users.map((u: any) => ({
+      id: u._id.toString(),
+      username: u.username,
+      name: u.full_name,
+      avatar: u.avatar_url,
+      verified: u.is_verified,
+      followers: u.followers_count || 0,
+      bio: u.bio || ''
+    }))
+
+    const formattedPosts = posts.map((p: any) => ({
+      id: p._id.toString(),
+      user: {
+        id: p.user_id._id.toString(),
+        username: p.user_id.username,
+        avatar: p.user_id.avatar_url,
+        verified: p.user_id.is_verified
+      },
+      content: p.caption || p.description || '',
+      image: p.media_urls?.[0],
+      likes: p.likes_count || 0,
+      comments: p.comments_count || 0,
+      shares: p.shares_count || 0,
+      timestamp: p.created_at,
+      liked: false,
+      bookmarked: false
+    }))
+
+    console.log('[Search] Returning:', {
+      users: formattedUsers.length,
+      posts: formattedPosts.length,
+      hashtags: hashtags.length
+    })
+
+    res.json({
+      success: true,
+      users: formattedUsers,
+      posts: formattedPosts,
+      hashtags
+    })
+  } catch (error) {
+    console.error("Error performing search:", error)
+    res.status(500).json({ 
+      success: false,
+      error: "Internal server error" 
+    })
+  }
+})
 
 // Search users
 router.get("/users", async (req, res) => {

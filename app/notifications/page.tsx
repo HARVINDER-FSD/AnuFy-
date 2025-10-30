@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import MasterAPI from "@/lib/master-api"
 
 interface Notification {
   id: string
@@ -32,87 +33,34 @@ interface Notification {
 // Function to fetch notifications
 const fetchNotifications = async (): Promise<Notification[]> => {
   try {
-    // Get token from cookies
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-      ?.split('=')[1];
-
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const headers: HeadersInit = {
-      'Authorization': `Bearer ${token}`
-    };
-
-    const response = await fetch('/api/notifications', { headers });
-    if (!response.ok) {
-      if (response.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Please log in to view notifications');
-      }
-      throw new Error('Failed to fetch notifications');
-    }
-
-    const data = await response.json();
-    console.log('Notifications API response:', data);
-
+    const data = await MasterAPI.Notification.getNotifications()
+    
     if (!data.notifications || !Array.isArray(data.notifications)) {
-      console.log('No notifications array found');
       return [];
     }
 
-    console.log('Processing', data.notifications.length, 'notifications');
+    const processedNotifications: Notification[] = data.notifications.map((notification: any, i: number) => {
+      const userInfo = notification.user || notification.sender;
+      
+      return {
+        id: notification.id || notification._id || `notif-${Date.now()}-${i}`,
+        type: notification.type || 'like',
+        user: {
+          id: userInfo?.id || userInfo?._id || '',
+          username: userInfo?.username || 'Unknown',
+          avatar: userInfo?.avatar_url || userInfo?.avatar || "/placeholder-user.jpg",
+          verified: userInfo?.is_verified || userInfo?.verified || false,
+        },
+        content: notification.content || notification.message || '',
+        post: notification.post_id ? {
+          id: notification.post_id,
+          image: notification.post_image || "/placeholder.jpg",
+        } : undefined,
+        timestamp: notification.created_at || new Date().toISOString(),
+        isRead: notification.is_read || false,
+      };
+    });
 
-    const processedNotifications: Notification[] = [];
-
-    for (let i = 0; i < data.notifications.length; i++) {
-      try {
-        const notification = data.notifications[i];
-
-        if (!notification) {
-          console.warn(`Notification at index ${i} is null/undefined`);
-          continue;
-        }
-
-        const userInfo = notification.user || notification.sender;
-
-        if (!userInfo) {
-          console.warn(`Notification at index ${i} missing user info:`, notification);
-          continue;
-        }
-
-        if (!userInfo.id && !userInfo._id) {
-          console.warn(`User info at index ${i} missing ID:`, userInfo);
-          continue;
-        }
-
-        const processedNotification: Notification = {
-          id: notification.id || notification._id || `notif-${Date.now()}-${i}`,
-          type: notification.type || 'like',
-          user: {
-            id: userInfo.id || userInfo._id || '',
-            username: userInfo.username || 'Unknown',
-            avatar: userInfo.avatar_url || userInfo.avatar || "/placeholder-user.jpg",
-            verified: userInfo.is_verified || userInfo.verified || false,
-          },
-          content: notification.content || notification.message || '',
-          post: notification.post_id ? {
-            id: notification.post_id,
-            image: notification.post_image || "/placeholder.jpg",
-          } : undefined,
-          timestamp: notification.created_at || new Date().toISOString(),
-          isRead: notification.is_read || false,
-        };
-
-        processedNotifications.push(processedNotification);
-      } catch (error) {
-        console.error(`Error processing notification at index ${i}:`, error, data.notifications[i]);
-      }
-    }
-
-    console.log('Successfully processed', processedNotifications.length, 'notifications');
     return processedNotifications;
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -179,20 +127,7 @@ export default function NotificationsPage() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      await fetch('/api/notifications', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({ notificationId })
-      })
-
+      await MasterAPI.Notification.markAsRead(notificationId)
       setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)))
     } catch (error) {
       console.error('Error marking notification as read:', error)
@@ -201,23 +136,8 @@ export default function NotificationsPage() {
 
   const markAllAsRead = async () => {
     try {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('token=') || row.startsWith('client-token='))
-        ?.split('=')[1]
-
-      await fetch('/api/notifications', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({}) // Empty body marks all as read
-      })
-
+      await MasterAPI.Notification.markAsRead()
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
-
-      // Force reload the page to update the header badge
       window.location.reload()
     } catch (error) {
       console.error('Error marking all as read:', error)

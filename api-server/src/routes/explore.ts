@@ -2,30 +2,137 @@ import { Router } from "express"
 import { PostService } from "../services/post"
 import { ReelService } from "../services/reel"
 import { authenticateToken } from "../middleware/auth"
+import { getDatabase } from "../lib/database"
 
 const router = Router()
 
 // Get trending posts
 router.get("/trending", async (req, res) => {
   try {
-    const { page, limit } = req.query
+    const { category = 'all', limit = 20 } = req.query
+    const limitNum = Number.parseInt(limit as string) || 20
+
+    const db = await getDatabase()
+    
+    // Get recent posts with most likes
+    const posts = await db.collection('posts')
+      .aggregate([
+        {
+          $match: {
+            created_at: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+          }
+        },
+        {
+          $lookup: {
+            from: 'likes',
+            localField: '_id',
+            foreignField: 'post_id',
+            as: 'likes'
+          }
+        },
+        {
+          $lookup: {
+            from: 'comments',
+            localField: '_id',
+            foreignField: 'post_id',
+            as: 'comments'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'user_id',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        {
+          $unwind: { path: '$user', preserveNullAndEmptyArrays: true }
+        },
+        {
+          $addFields: {
+            likes_count: { $size: '$likes' },
+            comments_count: { $size: '$comments' },
+            engagement_score: {
+              $add: [
+                { $multiply: [{ $size: '$likes' }, 2] },
+                { $size: '$comments' }
+              ]
+            }
+          }
+        },
+        {
+          $sort: { engagement_score: -1, created_at: -1 }
+        },
+        {
+          $limit: limitNum
+        },
+        {
+          $project: {
+            likes: 0,
+            comments: 0,
+            engagement_score: 0
+          }
+        }
+      ])
+      .toArray()
+
+    // Get trending reels
+    const reels = await db.collection('reels')
+      .aggregate([
+        {
+          $match: {
+            is_archived: { $ne: true },
+            created_at: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'user_id',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        {
+          $unwind: { path: '$user', preserveNullAndEmptyArrays: true }
+        },
+        {
+          $addFields: {
+            engagement_score: {
+              $add: [
+                { $ifNull: ['$view_count', 0] },
+                { $multiply: [{ $ifNull: ['$likes_count', 0] }, 3] }
+              ]
+            }
+          }
+        },
+        {
+          $sort: { engagement_score: -1, created_at: -1 }
+        },
+        {
+          $limit: Math.floor(limitNum / 2) // Half for reels
+        },
+        {
+          $project: {
+            engagement_score: 0
+          }
+        }
+      ])
+      .toArray()
 
     res.json({
       success: true,
       data: {
-        posts: [],
-        pagination: {
-          page: Number.parseInt(page as string) || 1,
-          limit: Number.parseInt(limit as string) || 20,
-          total: 0,
-          totalPages: 0
-        }
+        posts,
+        reels
       }
     })
   } catch (error: any) {
-    res.status(error.statusCode || 500).json({
+    console.error('Error fetching trending content:', error)
+    res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.message || 'Failed to fetch trending content'
     })
   }
 })

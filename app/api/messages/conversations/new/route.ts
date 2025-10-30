@@ -3,7 +3,7 @@ import { MongoClient, ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
-const JWT_SECRET = process.env.JWT_SECRET || 'jnnkdajjsnfknaskfn';
+const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192';
 
 // Cache MongoDB connection
 let cachedClient: MongoClient | null = null;
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         await db.collection('conversations').updateOne(
           { _id: existingConversation._id },
           { 
-            $pull: { deleted_for: new ObjectId(currentUserId) },
+            $pull: { deleted_for: new ObjectId(currentUserId) } as any,
             $set: { updated_at: new Date() }
           }
         );
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         // Also restore messages for this user
         await db.collection('messages').updateMany(
           { conversation_id: existingConversation._id },
-          { $pull: { deleted_for: new ObjectId(currentUserId) } }
+          { $pull: { deleted_for: new ObjectId(currentUserId) } as any }
         );
       }
       

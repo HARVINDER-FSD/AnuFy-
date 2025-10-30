@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 
@@ -139,7 +139,7 @@ class BackgroundWorkers {
       const db = client.db();
       
       await db.collection('user_stats').updateOne(
-        { user_id: new MongoClient.ObjectId(data.userId) },
+        { user_id: new ObjectId(data.userId) },
         { $set: { ...data.stats, updated_at: new Date() } },
         { upsert: true }
       );
@@ -198,15 +198,15 @@ class BackgroundWorkers {
       
       // Generate various analytics
       const postsCount = await db.collection('posts').countDocuments({
-        user_id: new MongoClient.ObjectId(data.userId)
+        user_id: new ObjectId(data.userId)
       });
       
       const likesCount = await db.collection('likes').countDocuments({
-        user_id: new MongoClient.ObjectId(data.userId)
+        user_id: new ObjectId(data.userId)
       });
       
       const followersCount = await db.collection('follows').countDocuments({
-        following_id: new MongoClient.ObjectId(data.userId)
+        following_id: new ObjectId(data.userId)
       });
       
       const report = {
@@ -237,11 +237,11 @@ class BackgroundWorkers {
       
       // Collect user data
       const user = await db.collection('users').findOne({
-        _id: new MongoClient.ObjectId(data.userId)
+        _id: new ObjectId(data.userId)
       });
       
       const posts = await db.collection('posts').find({
-        user_id: new MongoClient.ObjectId(data.userId)
+        user_id: new ObjectId(data.userId)
       }).toArray();
       
       const backup = {

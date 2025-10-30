@@ -3,9 +3,9 @@
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { jwtDecode } from "jwt-decode"
 import { useToast } from "@/hooks/use-toast"
-import { getAuthToken, setAuthToken, removeAuthToken } from "@/lib/auth-utils"
+import JWTManager from "@/lib/jwt-manager"
+import ProfileManager from "@/lib/profile-manager"
 
 interface User {
   id: string
@@ -39,58 +39,159 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast()
 
   useEffect(() => {
-    // INSTANT auth check - no loading delay
-    try {
-      const token = getAuthToken()
-      
-      if (!token) {
+    // Use ProfileManager to load user
+    const loadUser = async () => {
+      try {
+        const userId = ProfileManager.getCurrentUserId();
+        if (!userId) {
+          setUser(null)
+          setLoading(false)
+          return
+        }
+
+        // Fetch fresh user data directly from MongoDB using ProfileManager
+        const userData = await ProfileManager.getCurrentUserProfile(true);
+
+        if (userData) {
+          const normalizedUser = {
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            name: userData.name || '',
+            avatar: userData.avatar_url,
+            bio: userData.bio || '',
+            followers: userData.followers || 0,
+            following: userData.following || 0,
+            verified: userData.verified || false,
+            posts_count: userData.posts_count || 0
+          };
+          
+          setUser(normalizedUser)
+          // Make user data available globally
+          if (typeof window !== 'undefined' && window.updateAuthUser) {
+            window.updateAuthUser(normalizedUser);
+          }
+        } else {
+          setUser(null)
+        }
+
+        setLoading(false)
+      } catch (error) {
+        console.error('Error loading user:', error)
+        JWTManager.logout()
         setUser(null)
         setLoading(false)
-        return
       }
+    };
+
+    loadUser();
+
+    // Listen for profile updates
+    const handleProfileUpdate = (event: CustomEvent) => {
+      const updatedData = event.detail;
+      console.log('[Auth Provider] Profile updated event received:', updatedData);
       
-      // Decode token instantly - no API call needed
-      const decoded = jwtDecode(token) as any
-      
-      // Set user immediately from token (0ms delay)
-      const quickUser = {
-        id: decoded.userId || decoded.sub,
-        username: decoded.username || '',
-        email: decoded.email || '',
-        name: decoded.name || decoded.username || '',
-        avatar: decoded.avatar || '/placeholder-user.jpg',
-        bio: decoded.bio || '',
-        followers: decoded.followers || 0,
-        following: decoded.following || 0,
-        verified: decoded.verified || false,
-        posts_count: decoded.posts_count || 0
-      }
-      setUser(quickUser)
-      setLoading(false) // Instant - no waiting
-      
-    } catch (error) {
-      console.error("Auth error:", error)
-      removeAuthToken()
-      setUser(null)
-      setLoading(false)
+      // Force a refresh of user data directly from MongoDB
+      ProfileManager.clearAllProfileCaches();
+      ProfileManager.getCurrentUserProfile(true).then(freshData => {
+        console.log('[Auth Provider] Fresh data after profile update:', freshData);
+        
+        if (!freshData) return;
+        
+        const timestamp = Date.now();
+        let avatarUrl = freshData.avatar_url || freshData.avatar || '/placeholder-user.jpg';
+        if (avatarUrl && avatarUrl !== '/placeholder-user.jpg') {
+          avatarUrl = avatarUrl.includes('?') 
+            ? `${avatarUrl}&t=${timestamp}` 
+            : `${avatarUrl}?t=${timestamp}`;
+        }
+        
+        // Convert profile data to user format
+        const updatedUser = {
+          id: freshData.id,
+          username: freshData.username,
+          email: freshData.email || updatedData.email,
+          name: freshData.name || updatedData.full_name || updatedData.name || '',
+          avatar: avatarUrl,
+          bio: freshData.bio || updatedData.bio || '',
+          followers: freshData.followers || updatedData.followers_count || updatedData.followers || 0,
+          following: freshData.following || updatedData.following_count || updatedData.following || 0,
+          verified: freshData.verified || updatedData.is_verified || updatedData.verified || false,
+          posts_count: freshData.posts_count || updatedData.posts_count || 0
+        };
+        
+        // Update user state
+        setUser(updatedUser);
+        
+        // Make user data available globally
+        if (typeof window !== 'undefined' && window.updateAuthUser) {
+          window.updateAuthUser(updatedUser);
+        }
+        
+        // Dispatch global event to refresh all components
+        const refreshEvent = new CustomEvent('force-profile-refresh', { 
+          detail: { 
+            ...updatedUser,
+            timestamp: timestamp 
+          }
+        });
+        window.dispatchEvent(refreshEvent);
+        
+        // Dispatch global event to refresh all components
+        window.dispatchEvent(new CustomEvent('user-data-refreshed', {
+          detail: { timestamp }
+        }));
+      }).catch(error => {
+        console.error('[Auth Provider] Error refreshing user data:', error);
+        
+        // Fallback to event data if refresh fails
+        const timestamp = Date.now();
+        let avatarUrl = updatedData.avatar_url || updatedData.avatar || '/placeholder-user.jpg';
+        if (avatarUrl && avatarUrl !== '/placeholder-user.jpg') {
+          avatarUrl = avatarUrl.includes('?') 
+            ? `${avatarUrl}&t=${timestamp}` 
+            : `${avatarUrl}?t=${timestamp}`;
+        }
+        
+        setUser({
+          id: updatedData.id,
+          username: updatedData.username,
+          email: updatedData.email,
+          name: updatedData.name || updatedData.full_name || '',
+          avatar: avatarUrl,
+          bio: updatedData.bio || '',
+          followers: updatedData.followers_count || updatedData.followers || 0,
+          following: updatedData.following_count || updatedData.following || 0,
+          verified: updatedData.is_verified || updatedData.verified || false,
+          posts_count: updatedData.posts_count || 0
+        });
+      });
+    }
+
+    window.addEventListener('profile-updated', handleProfileUpdate as EventListener)
+
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate as EventListener)
     }
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
-    
+
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
-        setUser(data.user);
-        setAuthToken(data.token);
+        // Use JWT manager to handle login
+        const userData = await JWTManager.loginWithToken(data.token);
+        setUser(userData);
+
         toast({
           title: "Login successful",
           description: "Welcome back!",
@@ -123,27 +224,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (username: string, email: string, password: string, name: string): Promise<boolean> => {
     setLoading(true);
-    
+
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password, name }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         // Auto-login after registration
-        setUser(data.user);
         if (data.token) {
-          setAuthToken(data.token);
+          const userData = await JWTManager.loginWithToken(data.token);
+          setUser(userData);
           toast({
             title: "Registration successful",
             description: "Your account has been created and you're now logged in",
           });
           router.push("/feed");
         } else {
+          setUser(data.user);
           toast({
             title: "Registration successful",
             description: "Your account has been created",
@@ -182,18 +284,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Logout API error:", error);
     } finally {
-      // Always clear cookies and state regardless of API response
-      removeAuthToken();
+      // Use JWT manager to handle logout
+      JWTManager.logout();
       setUser(null);
-      
+
       // Use router.replace for cleaner navigation
       router.replace("/login");
     }
   };
 
-  // Function to update user data
-  const updateUser = (updatedUser: User) => {
+  // Function to update user data using JWT manager
+  const updateUser = async (updatedUser: User) => {
+    // Optimistically update UI
     setUser(updatedUser);
+
+    // Refresh from database using JWT manager
+    try {
+      const freshData = await JWTManager.refreshUserData();
+      if (freshData) {
+        setUser(freshData);
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
   };
 
   return <AuthContext.Provider value={{ user, login, register, logout, loading, updateUser, setUser }}>{children}</AuthContext.Provider>
@@ -204,9 +317,9 @@ export function useAuth() {
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
-  
+
   // Removed excessive re-verification for better performance
   // Token is already verified in AuthProvider
-  
+
   return context
 }

@@ -8,9 +8,9 @@ import { Settings, Grid3X3, Bookmark, UserPlus, Film } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { jwtDecode } from "jwt-decode"
 import { useAuth } from "@/components/auth/auth-provider"
 import { ContentGrid } from "@/components/profile/content-grid"
+import ProfileManager from "@/lib/profile-manager"
 
 interface User {
   id: string;
@@ -33,18 +33,15 @@ export default function ProfilePage() {
   const [savedItems, setSavedItems] = useState<any[]>([])
   const [taggedItems, setTaggedItems] = useState<any[]>([])
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({})
+  const [freshUserData, setFreshUserData] = useState<any>(null)
   const router = useRouter()
   const { toast } = useToast()
   const { user, logout, loading } = useAuth()
+  
+  // Use fresh data if available, otherwise fall back to auth context
+  const displayUser = freshUserData || user
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login')
-      return;
-    }
-  }, [user, loading, router])
-
+  // Handler functions (defined before hooks)
   const handleLogout = async () => {
     try {
       await logout();
@@ -53,12 +50,6 @@ export default function ProfilePage() {
       // Fallback to manual redirect
       window.location.replace('/login');
     }
-  }
-
-  // Don't show loading spinner, just return null to avoid double loading states
-  if (!user) {
-    // Don't render anything while checking auth status
-    return null;
   }
 
   const handleEditProfile = () => {
@@ -112,6 +103,86 @@ export default function ProfilePage() {
         : item
     ))
   }
+
+  // Load fresh user data when profile is updated
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchFreshUserData = async () => {
+      try {
+        // Use ProfileManager to get fresh data directly from MongoDB
+        const userId = user?.id;
+        if (!userId) return;
+        
+        const profileData = await ProfileManager.fetchProfileData(userId, true);
+        if (profileData) {
+          console.log('[Profile] Fetched fresh user data with ProfileManager:', profileData);
+          
+          // Convert to user format
+          const userData = {
+            id: profileData.id,
+            username: profileData.username,
+            name: profileData.name || '',
+            email: profileData.email,
+            bio: profileData.bio || '',
+            avatar: profileData.avatar_url,
+            followers: profileData.followers || 0,
+            following: profileData.following || 0,
+            verified: profileData.verified || false,
+            posts_count: profileData.posts_count || 0
+          };
+          
+          // Force update the user data
+          setFreshUserData(userData);
+          
+          // Dispatch event to notify other components
+          window.dispatchEvent(new CustomEvent('profiles-cleared', { 
+            detail: { timestamp: Date.now() } 
+          }));
+        }
+      } catch (error) {
+        console.error('[Profile] Error fetching fresh user data:', error);
+      }
+    };
+
+    // Immediately fetch fresh data on mount
+    fetchFreshUserData();
+
+    // Listen for all profile update events
+    const handleProfileUpdate = () => {
+      console.log('[Profile] Profile updated event received, fetching fresh data...');
+      fetchFreshUserData();
+    };
+
+    // Listen to all profile-related events
+    const events = [
+      'profile-updated', 
+      'user-data-refreshed', 
+      'invalidate-cache', 
+      'force-profile-refresh', 
+      'force-mongodb-refresh', 
+      'cache-cleared',
+      'profiles-cleared'
+    ];
+    
+    events.forEach(event => window.addEventListener(event, handleProfileUpdate));
+    
+    // Set up an interval to periodically check for updates (every 30 seconds)
+    const refreshInterval = setInterval(fetchFreshUserData, 30000);
+    
+    return () => {
+      events.forEach(event => window.removeEventListener(event, handleProfileUpdate));
+      clearInterval(refreshInterval);
+    };
+  }, [user?.username]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+      return;
+    }
+  }, [user, loading, router])
 
   // Load user posts and reels
   useEffect(() => {
@@ -168,6 +239,11 @@ export default function ProfilePage() {
     fetchUserContent()
   }, [user])
 
+  // Early return AFTER all hooks
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-4">
       {/* Profile Header - Instagram Style */}
@@ -176,29 +252,29 @@ export default function ProfilePage() {
         <div className="flex items-start gap-4 mb-4">
           {/* Avatar */}
           <Avatar className="h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0">
-            <AvatarImage src={user.avatar || "/placeholder-user.jpg"} alt={user.username} />
+            <AvatarImage src={displayUser.avatar || "/placeholder-user.jpg"} alt={displayUser.username || "User"} />
             <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-              {user.username.charAt(0).toUpperCase()}
+              {displayUser.username ? displayUser.username.charAt(0).toUpperCase() : "U"}
             </AvatarFallback>
           </Avatar>
 
           {/* Stats and Name */}
           <div className="flex-1 min-w-0">
             {/* Username */}
-            <h1 className="text-xl font-semibold mb-3">{user.name || user.username}</h1>
+            <h1 className="text-xl font-semibold mb-3">{displayUser.name || displayUser.username}</h1>
 
             {/* Stats Row */}
             <div className="flex items-center gap-6 mb-3">
               <div className="text-center">
-                <div className="font-semibold">{user.posts_count || 0}</div>
+                <div className="font-semibold">{displayUser.posts_count || 0}</div>
                 <div className="text-sm text-muted-foreground">posts</div>
               </div>
               <div className="text-center">
-                <div className="font-semibold">{user.followers || 0}</div>
+                <div className="font-semibold">{displayUser.followers || 0}</div>
                 <div className="text-sm text-muted-foreground">followers</div>
               </div>
               <div className="text-center">
-                <div className="font-semibold">{user.following || 0}</div>
+                <div className="font-semibold">{displayUser.following || 0}</div>
                 <div className="text-sm text-muted-foreground">following</div>
               </div>
             </div>
@@ -206,8 +282,8 @@ export default function ProfilePage() {
         </div>
 
         {/* Bio */}
-        {user.bio && (
-          <p className="text-sm mb-4">{user.bio}</p>
+        {displayUser.bio && (
+          <p className="text-sm mb-4">{displayUser.bio}</p>
         )}
 
         {/* Action Buttons */}
@@ -222,7 +298,7 @@ export default function ProfilePage() {
             size="sm"
             className="flex-1"
             onClick={() => {
-              navigator.clipboard.writeText(window.location.origin + '/profile/' + user.username)
+              navigator.clipboard.writeText(window.location.origin + '/profile/' + displayUser.username)
               toast({ title: "Profile link copied!" })
             }}
           >

@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken" 
+import jwt from "jsonwebtoken"
 import { serverConfig as config } from "../lib/config"
 import type { JWTPayload } from "./types"
 
