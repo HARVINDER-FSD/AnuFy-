@@ -115,7 +115,7 @@ export default function UserProfilePage() {
 
         // Fallback to localStorage if not found in cookies
         if (!token) {
-          token = localStorage.getItem('token');
+          token = localStorage.getItem('token') || undefined;
         }
 
         console.log("Token found:", token ? "Yes" : "No");

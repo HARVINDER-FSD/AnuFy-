@@ -69,7 +69,7 @@ export async function GET(
       .aggregate([
         {
           $match: {
-            profile_owner_id: new MongoClient.ObjectId(userId)
+            profile_owner_id: new ObjectId(userId)
           }
         },
         {
@@ -108,7 +108,7 @@ export async function GET(
     
     // Get total visitor count
     const totalVisitors = await db.collection('profile_visits').countDocuments({
-      profile_owner_id: new MongoClient.ObjectId(userId)
+      profile_owner_id: new ObjectId(userId)
     });
     
     await client.close();

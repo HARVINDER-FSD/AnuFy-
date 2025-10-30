@@ -55,6 +55,9 @@ export default function HashtagPage() {
         .find(row => row.startsWith('token=') || row.startsWith('client-token='))
         ?.split('=')[1]
 
+      let postsData: any = null
+      let reelsData: any = null
+
       // Fetch posts with this hashtag
       const postsResponse = await fetch(`/api/search/advanced?q=${encodeURIComponent('#' + tag)}&type=posts&limit=50`, {
         headers: {
@@ -63,7 +66,7 @@ export default function HashtagPage() {
       })
 
       if (postsResponse.ok) {
-        const postsData = await postsResponse.json()
+        postsData = await postsResponse.json()
         setPosts(postsData.posts || [])
       }
 
@@ -75,7 +78,7 @@ export default function HashtagPage() {
       })
 
       if (reelsResponse.ok) {
-        const reelsData = await reelsResponse.json()
+        reelsData = await reelsResponse.json()
         setReels(reelsData.reels || [])
       }
 

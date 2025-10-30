@@ -41,7 +41,7 @@ export async function POST(
     const db = client.db();
     
     // Check if reel exists
-    const reel = await db.collection("reels").findOne({ _id: new MongoClient.ObjectId(reelId) });
+    const reel = await db.collection("reels").findOne({ _id: new ObjectId(reelId) });
     if (!reel) {
       await client.close();
       return NextResponse.json({ message: "Reel not found" }, { status: 404 });
@@ -49,15 +49,15 @@ export async function POST(
     
     // Increment view count
     await db.collection("reels").updateOne(
-      { _id: new MongoClient.ObjectId(reelId) },
+      { _id: new ObjectId(reelId) },
       { $inc: { views_count: 1 } }
     );
     
     // Record view for analytics (optional, for user-specific tracking)
     if (userId) {
       await db.collection("reel_views").insertOne({
-        reel_id: new MongoClient.ObjectId(reelId),
-        user_id: new MongoClient.ObjectId(userId),
+        reel_id: new ObjectId(reelId),
+        user_id: new ObjectId(userId),
         viewed_at: new Date(),
         ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
         user_agent: req.headers.get('user-agent') || 'unknown'

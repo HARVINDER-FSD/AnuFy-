@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { AppLayout } from "@/components/layout/app-layout"
 import { Toaster } from "@/components/ui/toaster"
+import { CacheControl } from "@/components/cache-control"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
                 <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
               </div>
             }>
+              <CacheControl />
               <AppLayout>
                 <div className="min-h-screen bg-background">{children}</div>
               </AppLayout>

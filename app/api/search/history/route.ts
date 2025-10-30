@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     .lean();
     
     return NextResponse.json({
-      history: history.map(h => ({
+      history: history.map((h: any) => ({
         id: h._id.toString(),
         query: h.query,
         type: h.type,

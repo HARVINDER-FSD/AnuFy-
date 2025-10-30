@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/database';
-import { token } from '@/lib/utils';
+import { getDatabase } from '@/lib/database';
 
 // Get all users
 
@@ -9,19 +8,28 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = searchParams.get('limit') || '10';
-    const offset = searchParams.get('offset') || '0';
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = parseInt(searchParams.get('offset') || '0');
     
-    const result = await query(
-      `SELECT id, username, full_name, avatar_url, bio, website, is_verified, created_at
-       FROM users
-       WHERE is_active = true
-       ORDER BY created_at DESC
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
+    const db = await getDatabase();
+    const users = await db.collection('users')
+      .find({ is_active: true })
+      .sort({ created_at: -1 })
+      .skip(offset)
+      .limit(limit)
+      .project({
+        id: { $toString: '$_id' },
+        username: 1,
+        full_name: 1,
+        avatar_url: 1,
+        bio: 1,
+        website: 1,
+        is_verified: 1,
+        created_at: 1
+      })
+      .toArray();
     
-    return NextResponse.json(result.rows);
+    return NextResponse.json(users);
     
   } catch (error: any) {
     console.error('Error fetching users:', error);

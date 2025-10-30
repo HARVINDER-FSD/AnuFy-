@@ -92,7 +92,7 @@ export default function NotificationSettingsPage() {
               <CardTitle>{group.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {group.items.map((item) => {
+              {group.items.map((item: any) => {
                 const Icon = item.icon
                 return (
                   <div key={item.key} className="flex items-center justify-between">

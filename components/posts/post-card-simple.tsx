@@ -67,33 +67,6 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
 
   const isOwner = currentUserId === post.user.id || post.isOwner
 
-  const handleDelete = async () => {
-    if (!isOwner) return;
-
-    try {
-      const response = await fetch(`/api/posts/${post.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (!response.ok) throw new Error('Failed to delete post');
-
-      toast({
-        title: "Post deleted!",
-        description: "Your post has been deleted successfully.",
-      });
-
-      onDelete?.(post.id);
-      setShowDeleteDialog(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete post.",
-        variant: "destructive"
-      });
-    }
-  }
-
   const handleLike = async () => {
     // CRITICAL: Check global lock FIRST
     if (globalLikeLocks.get(post.id)) {
@@ -487,12 +460,6 @@ export function PostCard({ post, onLike, onComment, onShare, onBookmark, onDelet
           {/* Counts display */}
           <div className="mt-2 px-1 space-y-1">
             <p className="font-semibold text-sm">{likesCount} likes</p>
-            {post.likedByFriends && post.likedByFriends.length > 0 && (
-              <p className="text-xs">
-                Liked by <span className="font-semibold">{post.likedByFriends[0]}</span>
-                {post.likedByFriends.length > 1 && <span> and <span className="font-semibold">{post.likedByFriends.length - 1} others</span></span>}
-              </p>
-            )}
             <p className="text-sm text-muted-foreground">{post.comments} comments • {post.shares} shares</p>
           </div>
         </div>

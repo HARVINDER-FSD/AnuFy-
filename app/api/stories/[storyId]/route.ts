@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/database';
+import { getDatabase } from '@/lib/database';
 import { token } from '@/lib/utils';
+import { ObjectId } from 'mongodb';
 
 // Get a specific story by ID
 export async function GET(
@@ -9,25 +10,52 @@ export async function GET(
 ) {
   try {
     const storyId = params.storyId;
+    const db = await getDatabase();
     
-    const result = await query(
-      `SELECT s.id, s.user_id, s.media_url, s.media_type, s.caption, 
-              s.created_at, s.expires_at, s.views_count,
-              u.username, u.full_name, u.avatar_url, u.is_verified
-       FROM stories s
-       JOIN users u ON s.user_id = u.id
-       WHERE s.id = $1 AND s.expires_at > NOW()`,
-      [storyId]
-    );
+    const story = await db.collection('stories').aggregate([
+      {
+        $match: {
+          _id: new ObjectId(storyId),
+          expires_at: { $gt: new Date() }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $project: {
+          id: { $toString: '$_id' },
+          user_id: { $toString: '$user_id' },
+          media_url: 1,
+          media_type: 1,
+          caption: 1,
+          created_at: 1,
+          expires_at: 1,
+          views_count: 1,
+          username: '$user.username',
+          full_name: '$user.full_name',
+          avatar_url: '$user.avatar_url',
+          is_verified: '$user.is_verified'
+        }
+      }
+    ]).toArray();
     
-    if (result.rows.length === 0) {
+    if (story.length === 0) {
       return NextResponse.json(
         { message: 'Story not found or expired' },
         { status: 404 }
       );
     }
     
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json(story[0]);
     
   } catch (error: any) {
     console.error('Error fetching story:', error);
@@ -66,21 +94,21 @@ export async function DELETE(
     }
     
     const userId = payload.userId;
+    const db = await getDatabase();
     
     // Check if the story exists and belongs to the user
-    const checkResult = await query(
-      'SELECT user_id FROM stories WHERE id = $1',
-      [storyId]
-    );
+    const story = await db.collection('stories').findOne({
+      _id: new ObjectId(storyId)
+    });
     
-    if (checkResult.rows.length === 0) {
+    if (!story) {
       return NextResponse.json(
         { message: 'Story not found' },
         { status: 404 }
       );
     }
     
-    if (checkResult.rows[0].user_id !== userId) {
+    if (story.user_id.toString() !== userId) {
       return NextResponse.json(
         { message: 'You are not authorized to delete this story' },
         { status: 403 }
@@ -88,10 +116,9 @@ export async function DELETE(
     }
     
     // Delete the story
-    await query(
-      'DELETE FROM stories WHERE id = $1',
-      [storyId]
-    );
+    await db.collection('stories').deleteOne({
+      _id: new ObjectId(storyId)
+    });
     
     return NextResponse.json(
       { message: 'Story deleted successfully' }

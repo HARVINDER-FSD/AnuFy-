@@ -348,7 +348,7 @@ export function FirebaseChat({ conversationId, recipient, onClose }: FirebaseCha
                               className="text-xs px-1.5 py-0.5 bg-background/50 rounded-full cursor-pointer hover:bg-background"
                               onClick={() => handleReaction(message.id!, emoji)}
                             >
-                              {emoji} {count}
+                              {emoji} {count as number}
                             </span>
                           ))}
                         </div>

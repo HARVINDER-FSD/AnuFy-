@@ -12,7 +12,7 @@ export function PerformanceMonitor() {
                 // Largest Contentful Paint
                 const lcpObserver = new PerformanceObserver((list) => {
                     const entries = list.getEntries()
-                    const lastEntry = entries[entries.length - 1]
+                    const lastEntry = entries[entries.length - 1] as any
                     console.log("LCP:", lastEntry.renderTime || lastEntry.loadTime)
                 })
                 lcpObserver.observe({ entryTypes: ["largest-contentful-paint"] })
@@ -20,7 +20,7 @@ export function PerformanceMonitor() {
                 // First Input Delay
                 const fidObserver = new PerformanceObserver((list) => {
                     const entries = list.getEntries()
-                    entries.forEach((entry) => {
+                    entries.forEach((entry: any) => {
                         console.log("FID:", entry.processingStart - entry.startTime)
                     })
                 })

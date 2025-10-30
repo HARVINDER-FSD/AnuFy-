@@ -48,7 +48,14 @@ const nextConfig = {
 
   // Generate unique build IDs to force cache invalidation
   generateBuildId: async () => {
-    return `build-${Date.now()}`
+    // Import version from cache manager
+    const version = process.env.APP_VERSION || Date.now()
+    return `build-${version}`
+  },
+  
+  // Add version to all pages
+  env: {
+    APP_VERSION: '1.0.3',
   },
 }
 

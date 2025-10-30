@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
     .lean();
     
     // Map users with blocked_at timestamp
-    const usersMap = new Map(users.map(u => [u._id.toString(), u]));
-    const blockedUsersWithInfo = blockedUsers.map(b => {
+    const usersMap = new Map(users.map((u: any) => [u._id.toString(), u]));
+    const blockedUsersWithInfo = blockedUsers.map((b: any) => {
       const user = usersMap.get(b.blocked_id.toString());
       return {
         id: b.blocked_id.toString(),

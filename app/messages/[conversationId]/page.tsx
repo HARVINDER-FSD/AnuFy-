@@ -133,10 +133,7 @@ export default function ConversationPage() {
         id: conversation.otherUser._id,
         username: conversation.otherUser.username,
         full_name: conversation.otherUser.full_name,
-        avatar: conversation.otherUser.avatar,
-        followers_count: 0, // TODO: Get from user data
-        posts_count: 0, // TODO: Get from user data
-        bio: '' // TODO: Get from user data
+        avatar: conversation.otherUser.avatar
       }}
       onClose={() => router.push('/messages')}
     />

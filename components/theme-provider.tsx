@@ -20,7 +20,6 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       defaultTheme="dark"
       enableSystem={false}
       disableTransitionOnChange
-      suppressHydrationWarning
     >
       {mounted ? children : <div className="min-h-screen bg-background">{children}</div>}
     </NextThemesProvider>
