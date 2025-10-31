@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express"
 import { query, cache, redis } from "./database"
 import { token, password, validate, errors, sanitize } from "./utils"
 import { config } from "./config"
-import type { User, JWTPayload } from "./types"
+import type { User as UserType, JWTPayload } from "./types"
 import { NextRequest } from "next/server"
 import * as bcrypt from 'bcryptjs'
 import * as jsonwebtoken from 'jsonwebtoken'
@@ -139,10 +139,10 @@ export class AuthService {
     
     try {
       // Use in-memory user storage
-      const users = global.users || [];
+      const users = (global as any).users || [];
       
       // Check if username or email already exists
-      const existingUser = users.find(u => 
+      const existingUser = users.find((u: any) => 
         u.username.toLowerCase() === sanitizedUsername.toLowerCase() || 
         u.email.toLowerCase() === sanitizedEmail.toLowerCase()
       );
@@ -170,11 +170,11 @@ export class AuthService {
       
       // Add to users array
       users.push(newUser);
-      global.users = users;
+      (global as any).users = users;
       
       // Save to localStorage for persistence
       if (typeof window !== 'undefined') {
-        localStorage.setItem('users', JSON.stringify(global.users));
+        localStorage.setItem('users', JSON.stringify((global as any).users));
       }
 
       // Generate JWT token
@@ -213,10 +213,10 @@ export class AuthService {
 
     try {
       // Use in-memory user storage for demonstration
-      const users = global.users || [];
+      const users = (global as any).users || [];
       
       // Find user by username or email
-      const foundUser = users.find(u => 
+      const foundUser = users.find((u: any) => 
         u.username.toLowerCase() === sanitizedUsername.toLowerCase() || 
         u.email.toLowerCase() === sanitizedUsername.toLowerCase()
       );
@@ -288,11 +288,11 @@ export class AuthService {
     // Store in Redis for quick access if available
     if (redis) {
       try {
-        await redis.set(`session:${userId}:${accessToken}`, JSON.stringify({
+        await redis.setex(`session:${userId}:${accessToken}`, config.redis.ttl.session, JSON.stringify({
           userId,
           deviceInfo,
           createdAt: new Date().toISOString()
-        }), 'EX', config.redis.ttl.session);
+        }));
       } catch (error) {
         console.warn("Failed to cache session in Redis:", error);
         // Continue without Redis caching

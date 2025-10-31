@@ -20,7 +20,7 @@ const getAuthToken = (): string | null => {
       token = document.cookie
         .split('; ')
         .find(row => row.startsWith('token='))
-        ?.split('=')[1];
+        ?.split('=')[1] || null;
     }
     
     // Clean token if it exists (remove quotes)
@@ -43,9 +43,9 @@ const apiRequest = async (
     const token = getAuthToken();
     
     // Set up headers with auth token if available
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
     
     if (token) {

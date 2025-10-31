@@ -20,8 +20,7 @@ const connectionOptions = {
   minPoolSize: 5,
   maxIdleTimeMS: 60000,
   retryWrites: true,
-  retryReads: true,
-  w: 'majority'
+  retryReads: true
 };
 
 // Initialize MongoDB connection

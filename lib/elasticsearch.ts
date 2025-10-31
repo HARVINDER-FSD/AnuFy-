@@ -32,7 +32,7 @@ export class ElasticsearchService {
       await client.index({
         index,
         id: document.id,
-        body: document,
+        document: document as any,
       })
     } catch (error) {
       console.error("Error indexing document:", error)
@@ -64,26 +64,24 @@ export class ElasticsearchService {
 
       const response = await client.search({
         index,
-        body: {
-          query: searchQuery,
-          sort: [{ _score: { order: "desc" } }, { created_at: { order: "desc" } }],
-          from: offset,
-          size: limit,
-          highlight: {
-            fields: {
-              content: {},
-            },
+        query: searchQuery,
+        sort: [{ _score: { order: "desc" } }, { created_at: { order: "desc" } }],
+        from: offset,
+        size: limit,
+        highlight: {
+          fields: {
+            content: {},
           },
         },
-      })
+      } as any)
 
       return {
-        hits: response.body.hits.hits.map((hit: any) => ({
+        hits: (response as any).hits.hits.map((hit: any) => ({
           ...hit._source,
           score: hit._score,
           highlight: hit.highlight,
         })),
-        total: response.body.hits.total.value,
+        total: (response as any).hits.total.value,
       }
     } catch (error) {
       console.error("Error searching:", error)
@@ -106,15 +104,13 @@ export class ElasticsearchService {
   async createIndex(index: string, mapping: Record<string, any>): Promise<void> {
     try {
       const exists = await client.indices.exists({ index })
-      if (!exists.body) {
+      if (!exists) {
         await client.indices.create({
           index,
-          body: {
-            mappings: {
-              properties: mapping,
-            },
+          mappings: {
+            properties: mapping,
           },
-        })
+        } as any)
       }
     } catch (error) {
       console.error("Error creating index:", error)

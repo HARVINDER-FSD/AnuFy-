@@ -42,7 +42,7 @@ export class AnalyticsService {
     ] = await Promise.all([
       // Posts created in period
       db.collection('posts').countDocuments({
-        user_id: new MongoClient.ObjectId(userId),
+        user_id: new ObjectId(userId),
         created_at: { $gte: startDate, $lte: endDate }
       }),
 
@@ -59,7 +59,7 @@ export class AnalyticsService {
         { $unwind: '$post' },
         {
           $match: {
-            'post.user_id': new MongoClient.ObjectId(userId),
+            'post.user_id': new ObjectId(userId),
             created_at: { $gte: startDate, $lte: endDate }
           }
         },
@@ -79,7 +79,7 @@ export class AnalyticsService {
         { $unwind: '$post' },
         {
           $match: {
-            'post.user_id': new MongoClient.ObjectId(userId),
+            'post.user_id': new ObjectId(userId),
             created_at: { $gte: startDate, $lte: endDate }
           }
         },
@@ -88,25 +88,25 @@ export class AnalyticsService {
 
       // Followers gained in period
       db.collection('follows').countDocuments({
-        following_id: new MongoClient.ObjectId(userId),
+        following_id: new ObjectId(userId),
         created_at: { $gte: startDate, $lte: endDate }
       }),
 
       // Profile views in period
       db.collection('profile_visits').countDocuments({
-        profile_owner_id: new MongoClient.ObjectId(userId),
+        profile_owner_id: new ObjectId(userId),
         visited_at: { $gte: startDate, $lte: endDate }
       }),
 
       // Stories created in period
       db.collection('stories').countDocuments({
-        user_id: new MongoClient.ObjectId(userId),
+        user_id: new ObjectId(userId),
         created_at: { $gte: startDate, $lte: endDate }
       }),
 
       // Reels created in period
       db.collection('reels').countDocuments({
-        user_id: new MongoClient.ObjectId(userId),
+        user_id: new ObjectId(userId),
         created_at: { $gte: startDate, $lte: endDate }
       })
     ]);
@@ -193,7 +193,7 @@ export class AnalyticsService {
                       contentType === 'stories' ? 'stories' : 'reels';
 
     const content = await db.collection(collection)
-      .find({ user_id: new MongoClient.ObjectId(userId) })
+      .find({ user_id: new ObjectId(userId) })
       .sort({ created_at: -1 })
       .limit(50)
       .toArray();

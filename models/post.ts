@@ -76,14 +76,14 @@ postSchema.pre('save', function(next) {
 postSchema.methods.extractHashtags = function() {
   const hashtagRegex = /#[\w\u0590-\u05ff]+/g;
   const matches = this.caption.match(hashtagRegex);
-  this.hashtags = matches ? matches.map(tag => tag.toLowerCase()) : [];
+  this.hashtags = matches ? matches.map((tag: string) => tag.toLowerCase()) : [];
 };
 
 // Method to extract mentions from caption
 postSchema.methods.extractMentions = function() {
   const mentionRegex = /@[\w\u0590-\u05ff]+/g;
   const matches = this.caption.match(mentionRegex);
-  this.mentions = matches ? matches.map(mention => mention.toLowerCase()) : [];
+  this.mentions = matches ? matches.map((mention: string) => mention.toLowerCase()) : [];
 };
 
 // Create the model if it doesn't exist or get it if it does

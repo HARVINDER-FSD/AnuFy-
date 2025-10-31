@@ -12,11 +12,12 @@ export class InstantAPI {
    */
   static async getFeed(userId: string, page: number = 1, limit: number = 10) {
     const cacheKey = CacheKeys.feed(userId, page)
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
-        const response = await MasterAPI.Post.getFeed(limit, (page - 1) * limit)
+        // MasterAPI.Post.getFeed() doesn't accept parameters
+        const response = await MasterAPI.Post.getFeed()
         return response
       },
       {
@@ -32,11 +33,11 @@ export class InstantAPI {
   static prefetchNextFeedPage(userId: string, currentPage: number, limit: number = 10) {
     const nextPage = currentPage + 1
     const cacheKey = CacheKeys.feed(userId, nextPage)
-    
+
     instantCache.prefetch(
       cacheKey,
       async () => {
-        const response = await MasterAPI.Post.getFeed(limit, (nextPage - 1) * limit)
+        const response = await MasterAPI.Post.getFeed()
         return response
       },
       CacheTTL.SHORT
@@ -48,7 +49,7 @@ export class InstantAPI {
    */
   static async getProfile(userId: string) {
     const cacheKey = CacheKeys.profile(userId)
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -67,7 +68,7 @@ export class InstantAPI {
    */
   static async getUserPosts(userId: string) {
     const cacheKey = CacheKeys.userPosts(userId)
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -86,7 +87,7 @@ export class InstantAPI {
    */
   static async getConversations(userId: string) {
     const cacheKey = CacheKeys.conversations(userId)
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -105,7 +106,7 @@ export class InstantAPI {
    */
   static async getMessages(conversationId: string, page: number = 1) {
     const cacheKey = CacheKeys.messages(conversationId, page)
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -124,7 +125,7 @@ export class InstantAPI {
    */
   static async getStories() {
     const cacheKey = CacheKeys.stories()
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -143,7 +144,7 @@ export class InstantAPI {
    */
   static async getNotifications(userId: string) {
     const cacheKey = CacheKeys.notifications(userId)
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -162,7 +163,7 @@ export class InstantAPI {
    */
   static async getReels(page: number = 1) {
     const cacheKey = CacheKeys.reels(page)
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -181,7 +182,7 @@ export class InstantAPI {
    */
   static async getTrending() {
     const cacheKey = CacheKeys.trending()
-    
+
     return instantCache.get(
       cacheKey,
       async () => {
@@ -221,21 +222,21 @@ export class InstantAPI {
   static prefetchCommonData(userId: string) {
     // Prefetch feed
     this.prefetchNextFeedPage(userId, 1)
-    
+
     // Prefetch stories
     instantCache.prefetch(
       CacheKeys.stories(),
       async () => MasterAPI.Story.getStories(),
       CacheTTL.SHORT
     )
-    
+
     // Prefetch notifications
     instantCache.prefetch(
       CacheKeys.notifications(userId),
       async () => MasterAPI.Notification.getNotifications(),
       CacheTTL.INSTANT
     )
-    
+
     // Prefetch trending
     instantCache.prefetch(
       CacheKeys.trending(),

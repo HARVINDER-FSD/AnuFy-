@@ -1,17 +1,14 @@
 import { Redis } from '@upstash/redis';
 
 // Initialize Redis client
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  : null;
 
-// Fallback to local Redis if Upstash is not configured
-const localRedis = process.env.REDIS_URL ? new Redis({
-  url: process.env.REDIS_URL,
-}) : null;
-
-const client = redis || localRedis;
+const client = redis;
 
 export class CacheService {
   private static instance: CacheService;
@@ -66,7 +63,7 @@ export class CacheService {
   async getFeed(userId: string): Promise<any[] | null> {
     try {
       const feed = await this.redis.get(`feed:${userId}`);
-      return feed ? JSON.parse(feed) : null;
+      return feed ? JSON.parse(feed as string) : null;
     } catch (error) {
       console.error('Redis feed get error:', error);
       return null;
@@ -94,7 +91,7 @@ export class CacheService {
   async getVisitorCount(profileId: string): Promise<number> {
     try {
       const count = await this.redis.get(`visitors:${profileId}`);
-      return count ? parseInt(count) : 0;
+      return count ? parseInt(count as string) : 0;
     } catch (error) {
       console.error('Redis visitor count get error:', error);
       return 0;
@@ -121,7 +118,7 @@ export class CacheService {
   async getPostStats(postId: string): Promise<{ likes: number; comments: number } | null> {
     try {
       const stats = await this.redis.get(`post:${postId}:stats`);
-      return stats ? JSON.parse(stats) : null;
+      return stats ? JSON.parse(stats as string) : null;
     } catch (error) {
       console.error('Redis post stats get error:', error);
       return null;
@@ -189,7 +186,7 @@ export class CacheService {
   async get(key: string): Promise<any> {
     try {
       const value = await this.redis.get(key);
-      return value ? JSON.parse(value) : null;
+      return value ? JSON.parse(value as string) : null;
     } catch (error) {
       console.error('Redis get error:', error);
       return null;

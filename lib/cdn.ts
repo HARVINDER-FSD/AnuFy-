@@ -126,7 +126,8 @@ export class CDNOptimizer {
     } = options;
 
     try {
-      const result = await cloudinary.uploader.upload(file, {
+      const fileToUpload = Buffer.isBuffer(file) ? `data:image/jpeg;base64,${file.toString('base64')}` : file;
+      const result = await cloudinary.uploader.upload(fileToUpload, {
         folder,
         public_id: publicId,
         tags,
@@ -170,7 +171,8 @@ export class CDNOptimizer {
     } = options;
 
     try {
-      const result = await cloudinary.uploader.upload(file, {
+      const fileToUpload = Buffer.isBuffer(file) ? `data:video/mp4;base64,${file.toString('base64')}` : file;
+      const result = await cloudinary.uploader.upload(fileToUpload, {
         folder,
         public_id: publicId,
         tags,
@@ -259,7 +261,6 @@ export class CDNOptimizer {
       width,
       height,
       crop: 'fill',
-      gravity: 'auto',
       overlay: watermarkPublicId,
       opacity,
       gravity: position,

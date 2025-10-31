@@ -1,12 +1,12 @@
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia';
 const JWT_SECRET = process.env.JWT_SECRET || '4d9f1c8c6b27a67e9f3a81d2e5b0f78c72d1e7a64d59c83fb20e5a72a8c4d192';
 
-interface AuthenticatedSocket extends SocketIOServer.Socket {
+interface AuthenticatedSocket extends Socket {
   userId?: string;
   username?: string;
 }
@@ -145,7 +145,7 @@ export class SocketService {
       // Handle reactions
       socket.on("add_reaction", async (data: { messageId: string; emoji: string }) => {
         try {
-          const message = await this.addReaction(data.messageId, socket.userId!, data.emoji);
+          const message: any = await this.addReaction(data.messageId, socket.userId!, data.emoji);
           
           // Broadcast reaction to conversation
           this.io.to(`conversation:${message.conversation_id}`).emit("message_reaction", {
@@ -195,7 +195,7 @@ export class SocketService {
 
     // Get conversation participants
     const conversation = await db.collection('conversations').findOne({
-      _id: new MongoClient.ObjectId(data.conversationId)
+      _id: new ObjectId(data.conversationId)
     });
 
     if (!conversation) {
@@ -208,9 +208,9 @@ export class SocketService {
     );
 
     const message = {
-      conversation_id: new MongoClient.ObjectId(data.conversationId),
-      sender_id: new MongoClient.ObjectId(data.senderId),
-      recipient_id: new MongoClient.ObjectId(recipientId),
+      conversation_id: new ObjectId(data.conversationId),
+      sender_id: new ObjectId(data.senderId),
+      recipient_id: new ObjectId(recipientId),
       content: data.content,
       message_type: data.messageType,
       media_url: data.mediaUrl || null,
@@ -224,7 +224,7 @@ export class SocketService {
     
     // Update conversation's updated_at
     await db.collection('conversations').updateOne(
-      { _id: new MongoClient.ObjectId(data.conversationId) },
+      { _id: new ObjectId(data.conversationId) },
       { $set: { updated_at: new Date() } }
     );
 
@@ -245,8 +245,8 @@ export class SocketService {
 
     await db.collection('messages').updateMany(
       {
-        _id: { $in: messageIds.map(id => new MongoClient.ObjectId(id)) },
-        recipient_id: new MongoClient.ObjectId(userId)
+        _id: { $in: messageIds.map(id => new ObjectId(id)) },
+        recipient_id: new ObjectId(userId)
       },
       {
         $set: {
@@ -264,7 +264,7 @@ export class SocketService {
     const db = client.db();
 
     const message = await db.collection('messages').findOne({
-      _id: new MongoClient.ObjectId(messageId)
+      _id: new ObjectId(messageId)
     });
 
     if (!message) {
@@ -278,13 +278,13 @@ export class SocketService {
 
     // Add new reaction
     updatedReactions.push({
-      user_id: new MongoClient.ObjectId(userId),
+      user_id: new ObjectId(userId),
       emoji: emoji,
       created_at: new Date()
     });
 
     await db.collection('messages').updateOne(
-      { _id: new MongoClient.ObjectId(messageId) },
+      { _id: new ObjectId(messageId) },
       { $set: { reactions: updatedReactions } }
     );
 

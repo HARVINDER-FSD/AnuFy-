@@ -20,8 +20,8 @@ export class WebSocketService {
         origin: "*",
         methods: ["GET", "POST"],
       },
-      pingInterval: config.websocket.pingInterval,
-      pingTimeout: config.websocket.pingTimeout,
+      pingInterval: 25000,
+      pingTimeout: 60000,
     })
 
     this.setupMiddleware()
@@ -140,28 +140,13 @@ export class WebSocketService {
   }
 
   private setupRedisSubscription() {
-    // Subscribe to Redis channels for cross-server communication
-    redisSub.subscribe("chat_message", "notification", "user_status")
-
-    redisSub.on("message", (channel: string, message: string) => {
-      try {
-        const data = JSON.parse(message)
-
-        switch (channel) {
-          case "chat_message":
-            this.handleChatMessage(data)
-            break
-          case "notification":
-            this.handleNotification(data)
-            break
-          case "user_status":
-            this.handleUserStatusUpdate(data)
-            break
-        }
-      } catch (error) {
-        console.error("Error processing Redis message:", error)
-      }
-    })
+    // Note: Upstash Redis REST API doesn't support pub/sub
+    // For production, consider using a different Redis client or polling
+    if (!redisSub) {
+      console.warn("Redis subscription not available - using in-memory only")
+      return
+    }
+    // Pub/sub would require a different Redis client implementation
   }
 
   private handleChatMessage(data: any) {
@@ -181,13 +166,13 @@ export class WebSocketService {
 
   // Public methods for sending messages
   public sendMessageToConversation(conversationId: string, message: any) {
-    // Publish to Redis for cross-server support
-    redisPub.publish("chat_message", JSON.stringify({ ...message, conversationId }))
+    // Direct emit to conversation (single server mode)
+    this.io.to(`conversation:${conversationId}`).emit("new_message", { ...message, conversationId })
   }
 
   public sendNotificationToUser(userId: string, notification: any) {
-    // Publish to Redis for cross-server support
-    redisPub.publish("notification", JSON.stringify({ ...notification, userId }))
+    // Direct emit to user (single server mode)
+    this.io.to(`user:${userId}`).emit("notification", { ...notification, userId })
   }
 
   private broadcastUserStatus(userId: string, status: string) {
@@ -197,8 +182,8 @@ export class WebSocketService {
       timestamp: new Date(),
     }
 
-    // Publish to Redis for cross-server support
-    redisPub.publish("user_status", JSON.stringify(statusData))
+    // Direct broadcast (single server mode)
+    this.io.emit("user_status_update", statusData)
   }
 
   public isUserOnline(userId: string): boolean {
