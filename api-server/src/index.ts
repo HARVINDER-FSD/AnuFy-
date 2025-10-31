@@ -10,6 +10,7 @@ console.log('MONGODB_URI value:', process.env.MONGODB_URI?.substring(0, 50))
 import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
+import mongoose from 'mongoose'
 import authRoutes from './routes/auth'
 import usersRoutes from './routes/users'
 import postsRoutes from './routes/posts'
@@ -27,6 +28,21 @@ import bookmarksRoutes from './routes/bookmarks'
 
 const app = express()
 const PORT = process.env.PORT || 8000
+
+// Connect to MongoDB at startup
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/socialmedia'
+mongoose.set('strictQuery', false)
+mongoose.connect(MONGODB_URI, {
+  serverSelectionTimeoutMS: 15000,
+  socketTimeoutMS: 45000,
+})
+.then(() => {
+  console.log('✅ MongoDB connected successfully')
+})
+.catch((error) => {
+  console.error('❌ MongoDB connection error:', error.message)
+  console.log('⚠️  Server will continue but database operations may fail')
+})
 
 // Middleware
 app.use(cors({

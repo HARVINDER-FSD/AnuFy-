@@ -42,16 +42,15 @@ export function StoriesBar() {
     // Fetch stories immediately with optimizations
     const fetchStories = async () => {
       try {
-        const data = await MasterAPI.Story.getStories()
-        // Ensure data is an array
-        if (Array.isArray(data)) {
-          setStories(data)
-        } else if (data && Array.isArray(data.stories)) {
-          setStories(data.stories)
-        } else if (data && Array.isArray(data.data)) {
-          setStories(data.data)
+        const response = await MasterAPI.Story.getStories()
+        // Backend returns { success: true, data: [...] }
+        if (response?.success && Array.isArray(response.data)) {
+          setStories(response.data)
+        } else if (Array.isArray(response)) {
+          // Fallback for direct array response
+          setStories(response)
         } else {
-          console.warn('Stories data is not an array:', data)
+          console.warn('Unexpected stories response format:', response)
           setStories([])
         }
       } catch (error) {
@@ -66,16 +65,20 @@ export function StoriesBar() {
     fetchStories()
   }, [])
 
-  // Fetch user avatar using ProfileManager
+  // Fetch user avatar using ProfileManager - ALWAYS force refresh to get latest
   useEffect(() => {
     const fetchUserAvatar = async () => {
       if (!user) return
 
       try {
-        // Use ProfileManager to get fresh profile data
+        // ALWAYS force refresh to get the latest avatar from MongoDB
         const profileData = await ProfileManager.getCurrentUserProfile(true);
         if (profileData?.avatar_url) {
-          setUserAvatar(profileData.avatar_url);
+          // Add cache buster to ensure fresh image
+          const avatarWithCacheBuster = profileData.avatar_url.includes('?')
+            ? `${profileData.avatar_url}&cb=${Date.now()}`
+            : `${profileData.avatar_url}?cb=${Date.now()}`;
+          setUserAvatar(avatarWithCacheBuster);
           return;
         }
       } catch (error) {
@@ -86,19 +89,12 @@ export function StoriesBar() {
       const userAvatarFromAuth = user.avatar || (user as any).avatar_url || (user as any).profile_picture;
       if (userAvatarFromAuth && userAvatarFromAuth !== '/placeholder-user.jpg') {
         setUserAvatar(userAvatarFromAuth);
-        return;
-      }
-
-      // Last resort: try to get from stories
-      const myStoryData = stories.find(s => s.user_id === user.id);
-      if (myStoryData?.avatar_url && myStoryData.avatar_url !== '/placeholder-user.jpg') {
-        setUserAvatar(myStoryData.avatar_url);
       }
     }
 
     fetchUserAvatar();
 
-    // Listen for profile updates
+    // Listen for profile updates and ALWAYS refresh
     const handleProfileUpdate = () => {
       fetchUserAvatar();
     };
@@ -113,7 +109,7 @@ export function StoriesBar() {
         window.removeEventListener(event, handleProfileUpdate);
       });
     };
-  }, [user, stories])
+  }, [user])
 
   const handleStoryClick = (storyUserId?: string) => {
     if (user) {
@@ -167,14 +163,12 @@ export function StoriesBar() {
   const myStories = user ? Object.values(groupedStories).find((us: any) => us.user_id === user.id) : null
   const otherStories = Object.values(groupedStories).filter((us: any) => us.user_id !== user?.id)
 
-  // Get avatar from multiple sources with priority
-  // Accept any avatar including /placeholder-user.jpg (it's a valid avatar)
+  // Get avatar - ALWAYS prioritize fresh ProfileManager data over cached stories data
   let displayAvatar = '/placeholder.svg'
 
   if (userAvatar && userAvatar !== '') {
+    // Use fresh avatar from ProfileManager (already has cache buster)
     displayAvatar = userAvatar
-  } else if (myStories?.avatar_url) {
-    displayAvatar = myStories.avatar_url
   } else if (user?.avatar) {
     displayAvatar = user.avatar
   } else if ((user as any)?.avatar_url) {
@@ -182,6 +176,8 @@ export function StoriesBar() {
   } else if ((user as any)?.profile_picture) {
     displayAvatar = (user as any).profile_picture
   }
+  // NOTE: We intentionally don't use myStories?.avatar_url as fallback
+  // because it may contain old cached data from when the story was created
 
   console.log('[StoriesBar] Final display avatar:', displayAvatar)
 

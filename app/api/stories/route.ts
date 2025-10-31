@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       cacheDuration: CACHE_DURATION.SHORT,
       timeout: 30000,
       retries: 2,
-      fallback: []
+      fallback: { success: true, data: [] }
     }
   );
 }

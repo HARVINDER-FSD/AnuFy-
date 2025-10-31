@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Token - Quick Solution</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .token-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .success {
+            background: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        .error {
+            background: #ef4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        .step {
+            background: #f0f9ff;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Token Issue - Quick Solution</h1>
+        
+        <p><strong>Problem:</strong> Your authentication token is invalid or expired.</p>
+        <p><strong>Solution:</strong> Click the button below to set a fresh, valid token.</p>
+
+        <div class="token-box">
+            <strong>Your New Token:</strong><br>
+            <span id="tokenDisplay">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTA0YmZmOTc5ODllNWJmM2NjOTgyMjYiLCJpYXQiOjE3NjE5MTg5NjksImV4cCI6MTc2NDUxMDk2OX0.G7B9so1sCid1R4lnnIYtVgYLM6CrHGYA8x-ZKAUiA-Y</span>
+        </div>
+
+        <button onclick="fixToken()">🔑 Fix Token Now</button>
+        <button onclick="testToken()">🧪 Test Token</button>
+        <button onclick="goToCreatePost()">📝 Go to Create Post</button>
+
+        <div id="successMessage" class="success"></div>
+        <div id="errorMessage" class="error"></div>
+
+        <div style="margin-top: 30px;">
+            <h3>What this does:</h3>
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>Sets the token in localStorage</strong> - For API calls
+            </div>
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>Sets the token in cookies</strong> - For authentication
+            </div>
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>Verifies the token works</strong> - Tests with backend
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTA0YmZmOTc5ODllNWJmM2NjOTgyMjYiLCJpYXQiOjE3NjE5MTg5NjksImV4cCI6MTc2NDUxMDk2OX0.G7B9so1sCid1R4lnnIYtVgYLM6CrHGYA8x-ZKAUiA-Y';
+
+        function showSuccess(message) {
+            const el = document.getElementById('successMessage');
+            el.textContent = '✅ ' + message;
+            el.style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function showError(message) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = '❌ ' + message;
+            el.style.display = 'block';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        function fixToken() {
+            try {
+                // Set in localStorage
+                localStorage.setItem('token', TOKEN);
+                
+                // Set in cookies (multiple formats for compatibility)
+                document.cookie = `token=${TOKEN}; path=/; max-age=604800`; // 7 days
+                document.cookie = `client-token=${TOKEN}; path=/; max-age=604800`; // 7 days
+                
+                showSuccess('Token has been set successfully! You can now create posts.');
+                
+                // Auto-test after 1 second
+                setTimeout(testToken, 1000);
+            } catch (error) {
+                showError('Failed to set token: ' + error.message);
+            }
+        }
+
+        async function testToken() {
+            try {
+                showSuccess('Testing token with backend...');
+                
+                const response = await fetch('http://localhost:8000/api/users/me', {
+                    headers: {
+                        'Authorization': `Bearer ${TOKEN}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showSuccess(`Token works! Logged in as: ${data.data?.user?.username || 'User'}`);
+                } else {
+                    const error = await response.json();
+                    showError(`Token test failed: ${error.message || response.statusText}`);
+                }
+            } catch (error) {
+                showError('Error testing token: ' + error.message);
+            }
+        }
+
+        function goToCreatePost() {
+            window.location.href = '/create/post';
+        }
+
+        // Auto-fix on load
+        window.onload = function() {
+            console.log('🔧 Token fixer loaded');
+            console.log('Click "Fix Token Now" to set a valid token');
+        };
+    </script>
+</body>
+</html>

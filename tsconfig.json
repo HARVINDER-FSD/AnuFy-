@@ -19,10 +19,15 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/sdk": ["./src/sdk"],
+      "@/services": ["./src/services"],
+      "@/services/*": ["./src/services/*"],
+      "@/hooks": ["./src/hooks"],
+      "@/core/*": ["./src/core/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/**/*.ts", "src/**/*.tsx"],
   "exclude": [
     "node_modules",
     "routes/**/*",
@@ -30,6 +35,7 @@
     "workers/**/*",
     "scripts/**/*",
     "app_v0modified.tsx",
-    "api-server/**/*"
+    "api-server/**/*",
+    "master/**/*"
   ]
 }

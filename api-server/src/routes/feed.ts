@@ -10,7 +10,7 @@ router.get("/", authenticateToken, async (req, res) => {
     const { page, limit } = req.query
 
     const result = await PostService.getFeedPosts(
-      req.user!.userId,
+      req.userId!,
       Number.parseInt(page as string) || 1,
       Number.parseInt(limit as string) || 20,
     )
@@ -25,3 +25,4 @@ router.get("/", authenticateToken, async (req, res) => {
 })
 
 export default router
+

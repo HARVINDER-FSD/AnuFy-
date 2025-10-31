@@ -10,7 +10,7 @@ router.get("/conversations", authenticateToken, async (req, res) => {
         const { page, limit } = req.query
 
         const result = await ChatService.getUserConversations(
-            req.user!.userId,
+            req.userId!,
             Number.parseInt(page as string) || 1,
             Number.parseInt(limit as string) || 20,
         )
@@ -36,7 +36,7 @@ router.post("/conversations/direct", authenticateToken, async (req, res) => {
             })
         }
 
-        const conversation = await ChatService.getOrCreateDirectConversation(req.user!.userId, userId)
+        const conversation = await ChatService.getOrCreateDirectConversation(req.userId!, userId)
 
         res.json({
             success: true,
@@ -58,7 +58,7 @@ router.get("/conversations/:conversationId/messages", authenticateToken, async (
 
         const result = await ChatService.getConversationMessages(
             conversationId,
-            req.user!.userId,
+            req.userId!,
             Number.parseInt(page as string) || 1,
             Number.parseInt(limit as string) || 50,
         )
@@ -78,7 +78,7 @@ router.post("/conversations/:conversationId/messages", authenticateToken, async 
         const { conversationId } = req.params
         const { content, media_url, media_type, message_type, reply_to_id, shared_content } = req.body
 
-        const message = await ChatService.sendMessage(req.user!.userId, conversationId, {
+        const message = await ChatService.sendMessage(req.userId!, conversationId, {
             content,
             media_url,
             media_type,
@@ -112,7 +112,7 @@ router.post("/messages/read", authenticateToken, async (req, res) => {
             })
         }
 
-        await ChatService.markMessagesAsRead(req.user!.userId, messageIds)
+        await ChatService.markMessagesAsRead(req.userId!, messageIds)
 
         res.json({
             success: true,
@@ -130,7 +130,7 @@ router.post("/messages/read", authenticateToken, async (req, res) => {
 router.delete("/messages/:messageId", authenticateToken, async (req, res) => {
     try {
         const { messageId } = req.params
-        await ChatService.deleteMessage(messageId, req.user!.userId)
+        await ChatService.deleteMessage(messageId, req.userId!)
 
         res.json({
             success: true,
@@ -145,3 +145,4 @@ router.delete("/messages/:messageId", authenticateToken, async (req, res) => {
 })
 
 export default router
+

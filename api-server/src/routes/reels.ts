@@ -52,7 +52,7 @@ router.post("/", authenticateToken, async (req, res) => {
   try {
     const { video_url, thumbnail_url, title, description, duration } = req.body
 
-    const reel = await ReelService.createReel(req.user!.userId, {
+    const reel = await ReelService.createReel(req.userId!, {
       video_url,
       thumbnail_url,
       title,
@@ -95,7 +95,7 @@ router.get("/:reelId", optionalAuth, async (req, res) => {
 router.delete("/:reelId", authenticateToken, async (req, res) => {
   try {
     const { reelId } = req.params
-    await ReelService.deleteReel(reelId, req.user!.userId)
+    await ReelService.deleteReel(reelId, req.userId!)
 
     res.json({
       success: true,
@@ -113,7 +113,7 @@ router.delete("/:reelId", authenticateToken, async (req, res) => {
 router.post("/:reelId/like", authenticateToken, async (req, res) => {
   try {
     const { reelId } = req.params
-    await ReelService.likeReel(req.user!.userId, reelId)
+    await ReelService.likeReel(req.userId!, reelId)
 
     res.json({
       success: true,
@@ -131,7 +131,7 @@ router.post("/:reelId/like", authenticateToken, async (req, res) => {
 router.delete("/:reelId/like", authenticateToken, async (req, res) => {
   try {
     const { reelId } = req.params
-    await ReelService.unlikeReel(req.user!.userId, reelId)
+    await ReelService.unlikeReel(req.userId!, reelId)
 
     res.json({
       success: true,
@@ -194,7 +194,7 @@ router.post("/:reelId/comments", authenticateToken, async (req, res) => {
     const { reelId } = req.params
     const { content, parent_comment_id } = req.body
 
-    const comment = await CommentService.createComment(req.user!.userId, reelId, {
+    const comment = await CommentService.createComment(req.userId!, reelId, {
       content,
       parent_comment_id,
     })

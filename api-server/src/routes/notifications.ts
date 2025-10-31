@@ -10,7 +10,7 @@ router.get("/", authenticateToken, async (req, res) => {
     const { page, limit, unread_only } = req.query
 
     const result = await NotificationService.getUserNotifications(
-      req.user!.userId,
+      req.userId!,
       Number.parseInt(page as string) || 1,
       Number.parseInt(limit as string) || 20,
       unread_only === "true",
@@ -28,7 +28,7 @@ router.get("/", authenticateToken, async (req, res) => {
 // Get unread count
 router.get("/unread-count", authenticateToken, async (req, res) => {
   try {
-    const count = await NotificationService.getUnreadCount(req.user!.userId)
+    const count = await NotificationService.getUnreadCount(req.userId!)
 
     res.json({
       success: true,
@@ -45,7 +45,7 @@ router.get("/unread-count", authenticateToken, async (req, res) => {
 // Mark all notifications as read
 router.put("/read-all", authenticateToken, async (req, res) => {
   try {
-    await NotificationService.markAllAsRead(req.user!.userId)
+    await NotificationService.markAllAsRead(req.userId!)
 
     res.json({
       success: true,
@@ -63,7 +63,7 @@ router.put("/read-all", authenticateToken, async (req, res) => {
 router.put("/:notificationId/read", authenticateToken, async (req, res) => {
   try {
     const { notificationId } = req.params
-    await NotificationService.markAsRead(notificationId, req.user!.userId)
+    await NotificationService.markAsRead(notificationId, req.userId!)
 
     res.json({
       success: true,
@@ -81,7 +81,7 @@ router.put("/:notificationId/read", authenticateToken, async (req, res) => {
 router.delete("/:notificationId", authenticateToken, async (req, res) => {
   try {
     const { notificationId } = req.params
-    await NotificationService.deleteNotification(notificationId, req.user!.userId)
+    await NotificationService.deleteNotification(notificationId, req.userId!)
 
     res.json({
       success: true,
@@ -96,3 +96,4 @@ router.delete("/:notificationId", authenticateToken, async (req, res) => {
 })
 
 export default router
+

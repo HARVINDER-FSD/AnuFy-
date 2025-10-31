@@ -40,7 +40,7 @@ router.post("/presigned-url", authenticateToken, async (req, res) => {
       })
     }
 
-    const key = `${folder}/${req.user!.userId}/${Date.now()}_${fileName}`
+    const key = `${folder}/${req.userId!}/${Date.now()}_${fileName}`
     
     // Note: This requires StorageService.generatePresignedUrl to be implemented
     // For now, return a placeholder response
@@ -66,7 +66,7 @@ router.delete("/:key(*)", authenticateToken, async (req, res) => {
     const { key } = req.params
 
     // Verify the file belongs to the user
-    if (!key.includes(req.user!.userId)) {
+    if (!key.includes(req.userId!)) {
       return res.status(403).json({
         success: false,
         error: "You can only delete your own files",
@@ -86,3 +86,4 @@ router.delete("/:key(*)", authenticateToken, async (req, res) => {
 })
 
 export default router
+

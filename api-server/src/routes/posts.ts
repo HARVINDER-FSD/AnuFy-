@@ -11,7 +11,7 @@ router.get("/feed", authenticateToken, async (req, res) => {
     const { page, limit } = req.query
 
     const result = await PostService.getFeedPosts(
-      req.user!.userId,
+      req.userId!,
       Number.parseInt(page as string) || 1,
       Number.parseInt(limit as string) || 20,
     )
@@ -30,7 +30,8 @@ router.post("/", authenticateToken, async (req, res) => {
   try {
     const { content, media_urls, media_type, location } = req.body
 
-    const post = await PostService.createPost(req.user!.userId, {
+    // Use req.userId instead of req.user.userId
+    const post = await PostService.createPost(req.userId!, {
       content,
       media_urls,
       media_type,
@@ -74,7 +75,7 @@ router.put("/:postId", authenticateToken, async (req, res) => {
     const { postId } = req.params
     const updates = req.body
 
-    const post = await PostService.updatePost(postId, req.user!.userId, updates)
+    const post = await PostService.updatePost(postId, req.userId!, updates)
 
     res.json({
       success: true,
@@ -93,7 +94,7 @@ router.put("/:postId", authenticateToken, async (req, res) => {
 router.delete("/:postId", authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params
-    await PostService.deletePost(postId, req.user!.userId)
+    await PostService.deletePost(postId, req.userId!)
 
     res.json({
       success: true,
@@ -111,7 +112,7 @@ router.delete("/:postId", authenticateToken, async (req, res) => {
 router.post("/:postId/like", authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params
-    await PostService.likePost(req.user!.userId, postId)
+    await PostService.likePost(req.userId!, postId)
 
     res.json({
       success: true,
@@ -129,7 +130,7 @@ router.post("/:postId/like", authenticateToken, async (req, res) => {
 router.delete("/:postId/like", authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params
-    await PostService.unlikePost(req.user!.userId, postId)
+    await PostService.unlikePost(req.userId!, postId)
 
     res.json({
       success: true,
@@ -192,7 +193,7 @@ router.post("/:postId/comments", authenticateToken, async (req, res) => {
     const { postId } = req.params
     const { content, parent_comment_id } = req.body
 
-    const comment = await CommentService.createComment(req.user!.userId, postId, {
+    const comment = await CommentService.createComment(req.userId!, postId, {
       content,
       parent_comment_id,
     })

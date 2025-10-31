@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        .result {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Token Tester</h1>
+    
+    <div class="section">
+        <h2>Step 1: Check Current Tokens</h2>
+        <button onclick="checkTokens()">Check Tokens</button>
+        <div id="tokenResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 2: Test Token with Backend</h2>
+        <button onclick="testToken()">Test Token</button>
+        <div id="testResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 3: Try Creating Post</h2>
+        <button onclick="testCreatePost()">Test Create Post</button>
+        <div id="postResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 4: Force Re-login</h2>
+        <button onclick="forceRelogin()">Clear & Re-login</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        function checkTokens() {
+            const result = document.getElementById('tokenResult');
+            const clientToken = getCookie('client-token');
+            const token = getCookie('token');
+            const localToken = localStorage.getItem('token');
+
+            result.innerHTML = `
+                <h3>Found Tokens:</h3>
+                <pre>Cookie 'client-token': ${clientToken ? '✅ ' + clientToken.substring(0, 50) + '...' : '❌ Not found'}</pre>
+                <pre>Cookie 'token': ${token ? '✅ ' + token.substring(0, 50) + '...' : '❌ Not found'}</pre>
+                <pre>localStorage 'token': ${localToken ? '✅ ' + localToken.substring(0, 50) + '...' : '❌ Not found'}</pre>
+            `;
+        }
+
+        async function testToken() {
+            const result = document.getElementById('testResult');
+            result.innerHTML = '<p>Testing token...</p>';
+
+            const token = getCookie('client-token') || getCookie('token') || localStorage.getItem('token');
+
+            if (!token) {
+                result.innerHTML = '<p class="error">❌ No token found! Please login first.</p>';
+                return;
+            }
+
+            try {
+                // Test with backend directly
+                const response = await fetch('http://localhost:8000/api/users/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    result.innerHTML = `
+                        <p class="success">✅ Token is valid!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <p class="error">❌ Token is invalid or expired</p>
+                        <pre>Status: ${response.status}</pre>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ Error testing token</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testCreatePost() {
+            const result = document.getElementById('postResult');
+            result.innerHTML = '<p>Testing post creation...</p>';
+
+            const token = getCookie('client-token') || getCookie('token') || localStorage.getItem('token');
+
+            if (!token) {
+                result.innerHTML = '<p class="error">❌ No token found! Please login first.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        content: 'Test post from token tester',
+                        media_type: 'text'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    result.innerHTML = `
+                        <p class="success">✅ Post created successfully!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <p class="error">❌ Failed to create post</p>
+                        <pre>Status: ${response.status}</pre>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <p class="error">❌ Error creating post</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function forceRelogin() {
+            const result = document.getElementById('loginResult');
+            
+            // Clear all tokens
+            document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            document.cookie = 'client-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            localStorage.removeItem('token');
+            sessionStorage.clear();
+
+            result.innerHTML = `
+                <p class="success">✅ All tokens cleared!</p>
+                <p>Redirecting to login page...</p>
+            `;
+
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        }
+
+        // Auto-check tokens on load
+        window.onload = checkTokens;
+    </script>
+</body>
+</html>

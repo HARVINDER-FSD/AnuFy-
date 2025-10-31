@@ -8,9 +8,8 @@ const router = Router()
 
 // Extend Request type to include user
 interface AuthRequest extends Request {
-  user?: {
-    userId: string
-  }
+  user?: any
+  userId?: string
 }
 
 // Get stories feed - optional auth
@@ -28,20 +27,22 @@ router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
     .limit(50)
     .lean()
 
-    // Format stories for frontend
-    const formattedStories = stories.map((story: any) => ({
-      id: story._id.toString(),
-      user_id: story.user_id._id.toString(),
-      username: story.user_id.username,
-      full_name: story.user_id.full_name,
-      avatar_url: story.user_id.avatar_url,
-      is_verified: story.user_id.is_verified,
-      media_url: story.media_url,
-      media_type: story.media_type,
-      caption: story.caption,
-      created_at: story.created_at,
-      expires_at: story.expires_at
-    }))
+    // Format stories for frontend (filter out stories with deleted users)
+    const formattedStories = stories
+      .filter((story: any) => story.user_id) // Only include stories with valid users
+      .map((story: any) => ({
+        id: story._id.toString(),
+        user_id: story.user_id._id.toString(),
+        username: story.user_id.username,
+        full_name: story.user_id.full_name,
+        avatar_url: story.user_id.avatar_url,
+        is_verified: story.user_id.is_verified,
+        media_url: story.media_url,
+        media_type: story.media_type,
+        caption: story.caption,
+        created_at: story.created_at,
+        expires_at: story.expires_at
+      }))
 
     res.json({
       success: true,
@@ -62,7 +63,7 @@ router.post("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     await connectToDatabase()
     
     const { media_url, media_type, caption } = req.body
-    const userId = req.user!.userId
+    const userId = req.userId!
 
     if (!media_url || !media_type) {
       return res.status(400).json({
@@ -132,7 +133,7 @@ router.delete("/:storyId", authenticateToken, async (req: AuthRequest, res: Resp
     await connectToDatabase()
     
     const { storyId } = req.params
-    const userId = req.user!.userId
+    const userId = req.userId!
 
     const story = await Story.findById(storyId)
 
@@ -171,7 +172,7 @@ router.post("/:storyId/view", authenticateToken, async (req: AuthRequest, res: R
     await connectToDatabase()
     
     const { storyId } = req.params
-    const userId = req.user!.userId
+    const userId = req.userId!
 
     const story = await Story.findById(storyId)
 
@@ -206,7 +207,7 @@ router.get("/:storyId/views", authenticateToken, async (req: AuthRequest, res: R
     await connectToDatabase()
     
     const { storyId } = req.params
-    const userId = req.user!.userId
+    const userId = req.userId!
 
     const story = await Story.findById(storyId)
 

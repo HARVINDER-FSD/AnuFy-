@@ -50,11 +50,18 @@ function StoriesContent() {
       try {
         const response = await fetch('/api/stories')
         if (response.ok) {
-          const data = await response.json()
-          setStories(data)
-          
+          const result = await response.json()
+          // Backend returns { success: true, data: [...] }
+          const storiesArray = result?.success && Array.isArray(result.data)
+            ? result.data
+            : Array.isArray(result)
+              ? result
+              : []
+
+          setStories(storiesArray)
+
           // Group stories by user
-          const grouped = data.reduce((acc: any, story: Story) => {
+          const grouped = storiesArray.reduce((acc: any, story: Story) => {
             if (!acc[story.user_id]) {
               acc[story.user_id] = {
                 user_id: story.user_id,
@@ -68,10 +75,10 @@ function StoriesContent() {
             acc[story.user_id].stories.push(story)
             return acc
           }, {})
-          
+
           const groupedArray = Object.values(grouped)
           setGroupedStories(groupedArray)
-          
+
           // If viewing specific user, find their index
           if (viewingUserId) {
             const userIndex = groupedArray.findIndex((g: any) => g.user_id === viewingUserId)
